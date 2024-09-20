@@ -6,11 +6,11 @@ app.use(cors())
 
 var mysql = require("mysql2");
 
-var hostname = "x6j.h.filess.io";
-var database = "ipsum_warmpenwhy";
-var port = "3307";
-var username = "ipsum_warmpenwhy";
-var password = "0e9e732d794b25a60b1b65e2067c23379da002a7";
+var hostname = "sql.freedb.tech";
+var database = "freedb_IpsumDB";
+var port = "3306";
+var username = "freedb_adminIpsum";
+var password = "$YUMfqrbKp#Xr9P";
 
 var con = mysql.createConnection({
     host: hostname,
