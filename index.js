@@ -26,7 +26,7 @@ con.connect(function (err) {
 });
 
 
-app.get('/api/test/:query', (req, res) => {
+app.get('/test/:query', (req, res) => {
     const {query} = req.params
     con.query('Call findAll(?)', [query] ,(err, results) => {
         if (err) {
@@ -39,3 +39,5 @@ app.get('/api/test/:query', (req, res) => {
 app.listen(3001, () => {
     console.log("Hola mundo")
 })
+
+module.exports = app;
