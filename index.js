@@ -36,6 +36,16 @@ app.get('/test/:query', (req, res) => {
     })
 })
 
+
+app.get('/projectNames', (req, res) => {
+    con.query('select * from proyectos' ,(err, results) => {
+        if (err) {
+           res.json(err)
+        }
+        res.status(200).json(results)
+    })
+})
+
 app.listen(3001, () => {
     console.log("Hola mundo")
 })
