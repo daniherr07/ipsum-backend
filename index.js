@@ -46,6 +46,16 @@ app.get('/projectNames', (req, res) => {
     })
 })
 
+app.get('/getData/:name', (req, res) => {
+    const {name} = req.params
+    con.query('Call prueba(?)', [name] ,(err, results) => {
+        if (err) {
+           res.json(err)
+        }
+        res.status(200).json(results[0])
+    })
+})
+
 app.listen(3001, () => {
     console.log("Hola mundo")
 })
