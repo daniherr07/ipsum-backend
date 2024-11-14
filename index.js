@@ -2,7 +2,10 @@ const express = require('express')
 const app = express()
 const cors = require('cors')
 
+
 app.use(cors())
+app.use(express.json());
+
 
 var mysql = require("mysql2");
 
@@ -55,6 +58,8 @@ app.get('/getData/:name', (req, res) => {
         res.status(200).json(results[0])
     })
 })
+
+  
 
 app.listen(3001, () => {
     console.log("Hola mundo")
