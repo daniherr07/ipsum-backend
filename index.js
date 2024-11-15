@@ -59,6 +59,78 @@ app.get('/getData/:name', (req, res) => {
     })
 })
 
+app.post('/login', (req, res) => {
+    const {user, psw} = req.body
+    console.log("llego aqui 1")
+
+    con.query('Select * from usuarios where nombre = ?', [user] ,(err, results) => {
+        try{
+            if (err) {
+                return res.status(400).json(err)
+            }
+
+
+            if(results.length == 0){
+                console.log("Error de longitud")
+                return res.status(400).json({msj: "not users found"})
+
+            }
+
+            if (results[0].password == psw) {
+                if (results[0].estado == 0) {
+                    console.log("Usuario nuevo")
+                    return res.status(200).json({msj: "Usuario autorizado", authorized: true, newUser: true, rol: results[0].rol_id})
+                } else{
+                    console.log("Usuario viejo")
+                    return res.status(200).json({msj: "Usuario autorizado", authorized: true, newUser: false, rol: results[0].rol_id, user: user} )
+                }
+            } else{
+                console.log("Error de contraseña")
+                return res.status(400).json({msj: "Bad user or password"})
+            }
+        } catch (error){
+            return res.status(400).json(error)
+        }
+    })
+})
+
+app.post('/changePassword', (req, res) => {
+    const {user, email, psw, psw2} = req.body
+    
+    if (psw != psw2) {
+        res.status(400).json({msj: "Passwords don't match", pswError: true})
+        return
+    }
+
+    con.query('Select * from usuarios where nombre = ?', [user] ,(err, results) => {
+            if (err) {
+                return res.status(400).json(err)
+            }
+            console.log(results.length)
+
+            if(results.length == 0){
+                console.log("Error de longitud")
+                return res.status(400).json({msj: "not users found", userError: true})
+                
+            }
+
+            if (results[0].correo_electronico != email) {
+                return res.status(400).json({msj: "Emails doent match", emailError: true})
+            }
+
+            con.query('UPDATE usuarios SET estado = 1 WHERE nombre = ?', [user] ,(err, results) => {
+            })
+            
+            con.query('UPDATE usuarios SET password = ? WHERE nombre = ?', [psw, user] ,(err, results) => {
+                return res.status(200).json({msj: "Succesfuly Updated", correct: true})
+            })
+
+
+
+
+    })
+})
+
   
 
 app.listen(3001, () => {
