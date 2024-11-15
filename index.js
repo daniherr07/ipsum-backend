@@ -33,9 +33,9 @@ app.get('/test/:query', (req, res) => {
     const {query} = req.params
     con.query('Call findAll(?)', [query] ,(err, results) => {
         if (err) {
-           res.json(err)
+            return res.json(err)
         }
-        res.status(200).json(results[0])
+        return res.status(200).json(results[0])
     })
 })
 
@@ -43,9 +43,9 @@ app.get('/test/:query', (req, res) => {
 app.get('/projectNames', (req, res) => {
     con.query('select * from proyectos' ,(err, results) => {
         if (err) {
-           res.json(err)
+            return res.json(err)
         }
-        res.status(200).json(results)
+        return res.status(200).json(results)
     })
 })
 
@@ -53,9 +53,9 @@ app.get('/getData/:name', (req, res) => {
     const {name} = req.params
     con.query('Call prueba(?)', [name] ,(err, results) => {
         if (err) {
-           res.json(err)
+            return res.json(err)
         }
-        res.status(200).json(results[0])
+        return res.status(200).json(results[0])
     })
 })
 
