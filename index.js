@@ -1,10 +1,12 @@
 const express = require('express')
 const app = express()
 const cors = require('cors')
+const bodyParser = require('body-parser');
 
 
 app.use(cors())
-app.use(express.json());
+app.use(bodyParser.json());
+app.use(express.json())
 
 
 var mysql = require("mysql2");
@@ -61,31 +63,26 @@ app.get('/getData/:name', (req, res) => {
 
 app.post('/login', (req, res) => {
     const {user, psw} = req.body
-    console.log("llego aqui 1")
 
-    con.query('Select * from usuarios where nombre = ?', [user] ,(err, results) => {
+    con.query('call getUserWithRole(?)', [user] ,(err, results) => {
         try{
             if (err) {
                 return res.status(400).json(err)
             }
 
 
-            if(results.length == 0){
-                console.log("Error de longitud")
-                return res.status(400).json({msj: "not users found"})
 
+            if(results.length == 0){
+                return res.status(400).json({msj: "not users found"})
             }
 
-            if (results[0].password == psw) {
-                if (results[0].estado == 0) {
-                    console.log("Usuario nuevo")
-                    return res.status(200).json({msj: "Usuario autorizado", authorized: true, newUser: true, rol: results[0].rol_id})
+            if (results[0][0].password == psw) {
+                if (results[0][0].estado == 0) {
+                    return res.status(200).json({msj: "Usuario autorizado", authorized: true, newUser: true, rol: results[0][0].role_name})
                 } else{
-                    console.log("Usuario viejo")
-                    return res.status(200).json({msj: "Usuario autorizado", authorized: true, newUser: false, rol: results[0].rol_id, user: user} )
+                    return res.status(200).json({msj: "Usuario autorizado", authorized: true, newUser: false, rol: results[0][0].role_name, user: results[0][0].user_name} )
                 }
             } else{
-                console.log("Error de contraseña")
                 return res.status(400).json({msj: "Bad user or password"})
             }
         } catch (error){
@@ -106,10 +103,8 @@ app.post('/changePassword', (req, res) => {
             if (err) {
                 return res.status(400).json(err)
             }
-            console.log(results.length)
 
             if(results.length == 0){
-                console.log("Error de longitud")
                 return res.status(400).json({msj: "not users found", userError: true})
                 
             }
@@ -131,10 +126,226 @@ app.post('/changePassword', (req, res) => {
     })
 })
 
+app.get('/getBonos', (req, res) => {
+    con.query('Call getBonos()', (err, results) => {
+        if (err) {
+            return res.json(err)
+        }
+        const data = organizeBonos(results[0])
+        return res.status(200).json(data)
+    })
+})
+
+  
+app.get('/getAdminData/', (req, res) => {
+    con.query('Call ObtenerNombresRelevantes()', (err, results) => {
+        if (err) {
+            return res.json(err)
+        }
+        const data = organizeAdminData(results[0])
+        return res.status(200).json(data)
+    })
+})
+
+function organizeAdminData(data) {
+    const organizedData = {
+      Analista_de_Entidades: [],
+      Fiscal: [],
+      Promotor_de_Entidades: [],
+      Analista_Ipsum: [], // Add the new type here
+      Ingeniero: [],
+      Entidad: [],
+      Promotor_Ipsum: []
+    };
+  
+    // First pass: organize by type and collect entities
+    data.forEach(item => {
+      if (item.Tipo === 'Entidad') {
+        const entityData = {
+          localId: item.localID,  
+          Tipo: item.Tipo,
+          Nombre: item.Entidad,
+          Centros_de_Negocio: []
+        };
+        organizedData.Entidad.push(entityData);
+      } else if (item.Tipo in organizedData) {
+        // Remove unnecessary fields and add to the appropriate array
+        const { Centro_de_Negocio, ...rest } = item;
+        organizedData[item.Tipo].push(rest);
+      }
+    });
+  
+    // Second pass: add business centers to their respective entities
+    data.forEach(item => {
+      if (item.Tipo === 'Centro_de_Negocios') {
+        const entity = organizedData.Entidad.find(e => e.Nombre === item.Entidad);
+        if (entity) {
+          const itemData = {localId: item.localID, nombre: item.Centro_de_Negocio}
+          entity.Centros_de_Negocio.push(itemData);
+        }
+      }
+    });
+  
+    return organizedData;
+  }
+
+function organizeBonos(data){
+    const result = Object.values(
+        data.reduce((acc, { TipoBonoID, TipoBonoNombre, VarianteID, VarianteNombre }) => {
+          // Si el TipoBonoID no existe aún en el acumulador, lo inicializamos
+          if (!acc[TipoBonoID]) {
+            acc[TipoBonoID] = {
+              id: TipoBonoID,
+              nombre: TipoBonoNombre,
+              subtipos: []
+            };
+          }
+      
+          // Si la variante no es null, la añadimos al array de subtipos
+          if (VarianteID && VarianteNombre) {
+            acc[TipoBonoID].subtipos.push({ id: VarianteID, nombre: VarianteNombre });
+          }
+      
+          return acc;
+        }, {})
+      );
+    return result
+}
+
+app.post('/saveData/', (req, res) => {
+    const { projectData, familyMembers, directionData, formDataAdmin } = req.body;
+  
+    // Validate that there's at least one family member who is the head of the household
+    const hasHeadOfHousehold = familyMembers.some(member => member.tipo === 'Jefe/a de Familia');
+    if (!hasHeadOfHousehold) {
+      return res.status(400).json({ message: 'Debe haber al menos un miembro de familia que sea jefe/a de hogar' });
+    }
+
+    const newSubtipoSeleccionado = projectData.subtipoSeleccionado + 1
+  
+    if (!newSubtipoSeleccionado) {
+        console.log("error 1")
+      return res.status(400).json({ message: 'variante_bono_id is required' });
+    }
+  
+    // First, let's check if the variante_bono_id exists
+    con.query('SELECT id FROM variantes_bono WHERE id = ?', [newSubtipoSeleccionado], (err, results) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ message: 'Error checking variante_bono_id', error: err.message });
+      }
+      
+      if (results.length === 0) {
+        console.log("Error2")
+        return res.status(400).json({ message: 'Invalid variante_bono_id. Please select a valid option.' });
+      }
+  
+      // If we reach here, the variante_bono_id is valid, so we can proceed with the insertion
+      con.beginTransaction(err => {
+        if (err) {
+          console.error('Transaction error:', err);
+          return res.status(500).json({ message: 'Error al iniciar la transacción', error: err.message });
+        }
+  
+        // Insert propietario
+        con.query('INSERT INTO propietarios (tipo_propietario_id, cedula) VALUES (?, ?)', 
+          [directionData.loteTipoIdentificacion, directionData.loteIdentificacion], 
+          (err, propietarioResult) => {
+            if (err) {
+              return con.rollback(() => {
+                console.error('Propietario insertion error:', err);
+                res.status(500).json({ message: 'Error al insertar propietario', error: err.message });
+              });
+            }
+  
+            const propietarioId = propietarioResult.insertId;
+  
+            // Insert lote
+            con.query('INSERT INTO lotes (propietario_id, numero_plano_catastro, numero_finca, provincia, distrito, canton, senas_descripcion) VALUES (?, ?, ?, ?, ?, ?, ?)',
+              [propietarioId, directionData.numeroPlanoCatastro, directionData.finca, directionData.provincia, directionData.distrito, directionData.canton, directionData.otrassenas],
+              (err, loteResult) => {
+                if (err) {
+                  return con.rollback(() => {
+                    console.error('Lote insertion error:', err);
+                    res.status(500).json({ message: 'Error al insertar lote', error: err.message });
+                  });
+                }
+  
+                const loteId = loteResult.insertId;
+  
+                // Insert proyecto
+                const headOfFamily = familyMembers.find(member => member.tipo === 'Jefe/a de Familia');
+                const projectName = `${headOfFamily.nombre} ${headOfFamily.primerApellido} ${headOfFamily.segundoApellido}`;
+  
+                con.query('INSERT INTO proyectos (nombre, descripcion, grupo_proyecto_id, tipo_bono_id, variante_bono_id, lote_id, fecha_ingreso, presupuesto, avaluo, entidad_id, centro_negocio_id, analista_asigna_entidad_id, analista_asigna_ipsum_id, fiscal_id, ingeniero_id, promotor_externo_id, promotor_interno_id, codigo_apc, codigo_cfia, fis) VALUES (?, ?, ?, ?, ?, ?, CURDATE(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                  [projectName, projectData.desc, projectData.grupoSeleccionado, projectData.bonoSeleccionado, 
+                   newSubtipoSeleccionado, loteId, formDataAdmin.presupuesto, formDataAdmin.avaluo, 
+                   formDataAdmin.entidad, formDataAdmin.entidadSecundaria, formDataAdmin.analistaEntidad, 
+                   formDataAdmin.analistaIPSUM, formDataAdmin.fiscalAsignado, formDataAdmin.ingenieroAsignado, 
+                   formDataAdmin.promotorEntidad, formDataAdmin.Promotor_Ipsum, formDataAdmin.apc, 
+                   formDataAdmin.cfia, projectData.hasFIS],
+                  (err, proyectoResult) => {
+                    if (err) {
+                      return con.rollback(() => {
+                        console.error('Proyecto insertion error:', err);
+                        res.status(500).json({ message: 'Error al insertar proyecto', error: err.message });
+                      });
+                    }
+  
+                    const proyectoId = proyectoResult.insertId;
+                    console.log(familyMembers)
+  
+                    // Insert family members
+                    const familyValues = familyMembers.map(member => [
+                      proyectoId, 
+                      member.tipo || null, 
+                      member.nombre || null, 
+                      member.apellido1 || null, 
+                      member.apellido2 || null,
+                      member.identificacion || null, 
+                      member.tipoIdentificacion || null, 
+                      member.ingresos || null, 
+                      member.tipoIngresos || null,
+                      member.telefono || null, 
+                      member.tipoTelefono || null, 
+                      member.email || null, 
+                      member.adultoMayor || false, 
+                      member.discapacidad || false
+                    ]);
+  
+                    con.query('INSERT INTO familias (proyecto_id, tipo_miembro, nombre, apellido1, apellido2, cedula, tipo_cedula, ingreso, tipo_ingreso, telefono, tipo_telefono, email, adulto_mayor, discapacidad) VALUES ?',
+                      [familyValues],
+                      (err) => {
+                        if (err) {
+                          return con.rollback(() => {
+                            console.error('Family members insertion error:', err);
+                            res.status(500).json({ message: 'Error al insertar miembros de la familia', error: err.message });
+                          });
+                        }
+  
+                        con.commit(err => {
+                          if (err) {
+                            return con.rollback(() => {
+                              console.error('Commit error:', err);
+                              res.status(500).json({ message: 'Error al finalizar la transacción', error: err.message });
+                            });
+                          }
+                          res.status(200).json({ message: 'Proyecto guardado exitosamente', proyectoId });
+                        });
+                      }
+                    );
+                  }
+                );
+              }
+            );
+          }
+        );
+      });
+    });
+  });
   
 
 app.listen(3001, () => {
-    console.log("Hola mundo")
 })
 
 module.exports = app;
