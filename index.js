@@ -61,6 +61,22 @@ app.get('/getData/:name', (req, res) => {
     })
 })
 
+app.get('/getUsers', (req, res) => {
+  con.query('call getAllUsers()',(err, results) => {
+    try{
+        if (err) {
+            return res.status(400).json(err)
+        }
+
+        return res.status(200).json(results[0])
+    } catch (error){
+        return res.status(400).json(error)
+    }
+})
+})
+
+
+
 app.post('/login', (req, res) => {
     const {user, psw} = req.body
 
@@ -214,6 +230,13 @@ function organizeBonos(data){
 
 app.post('/saveData/', (req, res) => {
     const { projectData, familyMembers, directionData, formDataAdmin } = req.body;
+
+    console.log(
+      projectData,
+      familyMembers,
+      directionData,
+      formDataAdmin
+    )
   
     // Validate that there's at least one family member who is the head of the household
     const hasHeadOfHousehold = familyMembers.some(member => member.tipo === 'Jefe/a de Familia');
@@ -239,6 +262,11 @@ app.post('/saveData/', (req, res) => {
         console.log("Error2")
         return res.status(400).json({ message: 'Invalid variante_bono_id. Please select a valid option.' });
       }
+
+
+      try {
+        
+      
   
       // If we reach here, the variante_bono_id is valid, so we can proceed with the insertion
       con.beginTransaction(err => {
@@ -262,7 +290,7 @@ app.post('/saveData/', (req, res) => {
   
             // Insert lote
             con.query('INSERT INTO lotes (propietario_id, numero_plano_catastro, numero_finca, provincia, distrito, canton, senas_descripcion) VALUES (?, ?, ?, ?, ?, ?, ?)',
-              [propietarioId, directionData.numeroPlanoCatastro, directionData.finca, directionData.provincia, directionData.distrito, directionData.canton, directionData.otrassenas],
+              [propietarioId, directionData.numeroPlanoCatastro, directionData.finca, directionData.provincia, directionData.distrito, directionData.canton, directionData.otrasSenas],
               (err, loteResult) => {
                 if (err) {
                   return con.rollback(() => {
@@ -275,7 +303,7 @@ app.post('/saveData/', (req, res) => {
   
                 // Insert proyecto
                 const headOfFamily = familyMembers.find(member => member.tipo === 'Jefe/a de Familia');
-                const projectName = `${headOfFamily.nombre} ${headOfFamily.primerApellido} ${headOfFamily.segundoApellido}`;
+                const projectName = `${headOfFamily.nombre} ${headOfFamily.apellido1} ${headOfFamily.apellido2}`;
   
                 con.query('INSERT INTO proyectos (nombre, descripcion, grupo_proyecto_id, tipo_bono_id, variante_bono_id, lote_id, fecha_ingreso, presupuesto, avaluo, entidad_id, centro_negocio_id, analista_asigna_entidad_id, analista_asigna_ipsum_id, fiscal_id, ingeniero_id, promotor_externo_id, promotor_interno_id, codigo_apc, codigo_cfia, fis) VALUES (?, ?, ?, ?, ?, ?, CURDATE(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                   [projectName, projectData.desc, projectData.grupoSeleccionado, projectData.bonoSeleccionado, 
@@ -341,6 +369,10 @@ app.post('/saveData/', (req, res) => {
           }
         );
       });
+
+      } catch (err) {
+          console.log(err)
+      }
     });
   });
   
