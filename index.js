@@ -92,10 +92,18 @@ app.post('/login', (req, res) => {
                 return res.status(400).json({msj: "not users found"})
             }
 
+            if (results[0][0].activated == 0) {
+              return res.status(400).json({msj: "not users found", activated:false})
+            }
+
+            console.log(results[0][0])
+
             if (results[0][0].password == psw) {
                 if (results[0][0].estado == 0) {
+                  console.log("Usuario nuevo")
                     return res.status(200).json({msj: "Usuario autorizado", authorized: true, newUser: true, rol: results[0][0].role_name})
                 } else{
+                    console.log("Usuario viejo")
                     return res.status(200).json({msj: "Usuario autorizado", authorized: true, newUser: false, rol: results[0][0].role_name, user: results[0][0].user_name} )
                 }
             } else{
@@ -460,6 +468,24 @@ app.post('/addUser', (req, res) => {
             }
             return res.status(400).json(err)
             
+        }
+        return res.status(200).json(results[0])
+    } catch (error){
+      console.log(error.code)
+        return res.status(400).json(error)
+        
+    }
+  })
+})
+
+app.post('/changeStatus', (req, res) => {
+  const {id, activated} = req.body
+  const newValue = activated == 0 ? 1 : 0;
+
+  con.query('UPDATE usuarios SET activated = ? WHERE id = ?', [newValue, id] ,(err, results) => {
+    try{
+        if (err) {
+          return res.status(400).json(err)    
         }
         return res.status(200).json(results[0])
     } catch (error){
