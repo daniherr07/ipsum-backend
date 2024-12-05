@@ -377,6 +377,100 @@ app.post('/saveData/', (req, res) => {
   });
   
 
+app.post('/updateUser', (req, res) => {
+  const {id, lastName1, lastName2, userName, roles} = req.body
+
+  var roleId;
+
+  switch (roles) {
+    case "Root":
+      roleId = 1;
+      break;
+
+    case "Admin":
+      roleId = 2;
+      break;
+
+    case "Analista":
+      roleId = 3;
+      break;
+
+    case "Promotor":
+      roleId = 4;
+      break;
+
+    case "Ingeniero":
+      roleId = 5;
+      break;
+
+    default:
+      break;
+  }
+
+  con.query('UPDATE usuarios SET nombre = ?, apellido1 = ?, apellido2 = ?, rol_id = ? WHERE id = ?', [userName, lastName1, lastName2, roleId, id] ,(err, results) => {
+    try{
+        if (err) {
+            return res.status(400).json(err)
+        }
+        return res.status(200).json(results[0])
+    } catch (error){
+        return res.status(400).json(error)
+    }
+  })
+})
+
+app.post('/addUser', (req, res) => {
+  const {lastName1, lastName2, userName, roles, email} = req.body
+
+  var roleId;
+
+  switch (roles) {
+    case "Root":
+      roleId = 1;
+      break;
+
+    case "Admin":
+      roleId = 2;
+      break;
+
+    case "Analista":
+      roleId = 3;
+      break;
+
+    case "Promotor":
+      roleId = 4;
+      break;
+
+    case "Ingeniero":
+      roleId = 5;
+      break;
+
+    default:
+      break;
+  }
+
+  con.query('INSERT INTO usuarios (nombre, apellido1, apellido2, correo_electronico, rol_id) VALUES (?, ? ,?, ?, ?)', [userName, lastName1, lastName2, email, roleId] ,(err, results) => {
+    try{
+        if (err) {
+
+            if (err.code = "ERR_DUP_ENTRY") {
+              console.log(err)
+              return res.status(400).json({msj: err.message})
+              
+            }
+            return res.status(400).json(err)
+            
+        }
+        return res.status(200).json(results[0])
+    } catch (error){
+      console.log(error.code)
+        return res.status(400).json(error)
+        
+    }
+  })
+})
+
+
 app.listen(3001, () => {
 })
 
