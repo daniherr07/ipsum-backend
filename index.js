@@ -76,11 +76,10 @@ app.get('/filter', (req, res) => {
 
 app.get('/projectNames', (req, res) => {
   const query = req.query;
+  console.log(query)
   const values = query.value.split(',');
 
-  const isLabel = query.label == undefined ? true : false;
-
-  if (!isLabel) {
+  if (query.label == undefined || query.label == "undefined") {
     con.query('SELECT * FROM proyectos', (err, results, asd) => {
       if (err) {
         return res.json(err);
@@ -557,7 +556,8 @@ app.get('/getProjectDetails/:id', (req, res) => {
 
 
 app.post('/updateData/', (req, res) => {
-  const { projectData, familyMembers, directionData, formDataAdmin } = req.body;
+  const { projectData, familyMembers, directionData, formDataAdmin, deletedMembers } = req.body;
+  console.log("ProjectData", projectData)
 
   // Validate that there's at least one family member who is the head of the household
   const hasHeadOfHousehold = familyMembers.some(member => member.tipoMiembro == 'Jefe/a de Familia' || member.tipoMiembro == 'jefe/a de familia');
@@ -639,7 +639,6 @@ app.post('/updateData/', (req, res) => {
                   }
 
 
-                  console.log(familyMembers)
                   for (let i = 0; i < familyMembers.length; i++) {
 
                     if (familyMembers[i].id) {
@@ -666,6 +665,20 @@ app.post('/updateData/', (req, res) => {
 
 
                   }
+
+                  for (let i = 0; i < deletedMembers.length; i++) {
+                    con.query('Delete from familias where id = ?', [deletedMembers[i].id],
+                      (err) => {
+                        if (err) {
+                          return con.rollback(() => {
+                            console.error('Family members insertion error:', err);
+                            res.status(500).json({ message: 'Error al insertar miembros de la familia', error: err.message });
+                          });
+                        }});
+
+                  }
+
+
 
                   con.commit(err => {
                     if (err) {
@@ -698,6 +711,24 @@ app.get('/getEtapas', (req, res) => {
       if (err) {
           return res.json(err)
       }
+      return res.status(200).json(results)
+  })
+})
+
+app.post('/updateEtapa', (req, res) => {
+  const {id, etapa, subetapa} = req.body
+
+  console.log(req.body)
+  
+  const subetapaFixed = subetapa == 0 ? null : subetapa
+
+  console.log(subetapaFixed)
+  con.query('update proyectos set etapa_actual_id = ?, subetapa_actual_id = ? where id = ?', [etapa, subetapaFixed, id], (err, results) => {
+      if (err) {
+        console.log(err)
+          return res.json(err)
+      }
+      console.log(results)
       return res.status(200).json(results)
   })
 })
