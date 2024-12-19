@@ -41,15 +41,51 @@ app.get('/test/:query', (req, res) => {
     })
 })
 
+app.get('/filter', (req, res) => {
+  const { table, rol_id, nombre } = req.query;
+  const nombreArray = nombre.split(',');
+
+  if (rol_id) {
+    con.query('SELECT Concat(??, " ", ??, " ", ??) as nombre, id FROM usuarios where rol_id = ?', [nombreArray[0], nombreArray[1], nombreArray[2], rol_id], (err, results) => {
+      if (err) {
+        return res.json(err);
+      }
+      return res.status(200).json(results);
+    });
+  } else {
+
+    if (nombreArray.length > 1) {
+      con.query('SELECT Concat(??, " ", ??, " ", ??) as nombre, id FROM ??', [nombreArray[0], nombreArray[1], nombreArray[2], table], (err, results) => {
+        if (err) {
+          return res.json(err);
+        }
+        return res.status(200).json(results);
+      });
+      
+    } else {
+      con.query('SELECT ??, id FROM ??', [nombre, table], (err, results) => {
+        if (err) {
+          return res.json(err);
+        }
+        console.log(results);
+        return res.status(200).json(results);
+      });
+    }
+  }
+});
 
 app.get('/projectNames', (req, res) => {
-    con.query('select * from proyectos' ,(err, results) => {
-        if (err) {
-            return res.json(err)
-        }
-        return res.status(200).json(results)
-    })
-})
+  const query = req.query;
+  const values = query.value.split(',');
+
+  con.query('SELECT * FROM proyectos WHERE ?? in (?)', [query.label, values], (err, results, asd) => {
+      if (err) {
+        console.log(err)
+          return res.json(err);
+      }
+      return res.status(200).json(results);
+  });
+});
 
 app.get('/getData/:name', (req, res) => {
     const {name} = req.params
@@ -336,8 +372,8 @@ app.post('/saveData/', (req, res) => {
                       proyectoId, 
                       member.tipo || null, 
                       member.nombre || null, 
-                      member.apellido1 || null, 
-                      member.apellido2 || null,
+                      member.primerApellido || null, 
+                      member.segundoApellido || null,
                       member.identificacion || null, 
                       member.tipoIdentificacion || null, 
                       member.ingresos || null, 
@@ -382,7 +418,7 @@ app.post('/saveData/', (req, res) => {
           console.log(err)
       }
     });
-  });
+});
   
 
 app.post('/updateUser', (req, res) => {
@@ -493,6 +529,163 @@ app.post('/changeStatus', (req, res) => {
         return res.status(400).json(error)
         
     }
+  })
+})
+
+app.get('/getProjectDetails/:id', (req, res) => {
+  const {id} = req.params
+  con.query('call GetProjectInfo(?)', [id], (err, results) => {
+      if (err) {
+          return res.json(err)
+      }
+      return res.status(200).json(results)
+  })
+})
+
+
+app.post('/updateData/', (req, res) => {
+  const { projectData, familyMembers, directionData, formDataAdmin } = req.body;
+
+  // Validate that there's at least one family member who is the head of the household
+  const hasHeadOfHousehold = familyMembers.some(member => member.tipoMiembro == 'Jefe/a de Familia' || member.tipoMiembro == 'jefe/a de familia');
+  if (!hasHeadOfHousehold) {
+    return res.status(400).json({ message: 'Debe haber al menos un miembro de familia que sea jefe/a de hogar' });
+  }
+
+  const newSubtipoSeleccionado = projectData.subtipoSeleccionado
+
+  if (!newSubtipoSeleccionado) {
+      console.log("error 1")
+    return res.status(400).json({ message: 'variante_bono_id is required' });
+  }
+
+  // First, let's check if the variante_bono_id exists
+  con.query('SELECT id FROM variantes_bono WHERE id = ?', [newSubtipoSeleccionado], (err, results) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ message: 'Error checking variante_bono_id', error: err.message });
+    }
+    
+    if (results.length === 0) {
+      console.log("Error2")
+      return res.status(400).json({ message: 'Invalid variante_bono_id. Please select a valid option.' });
+    }
+
+
+    try {
+      
+    
+
+    // If we reach here, the variante_bono_id is valid, so we can proceed with the insertion
+    con.beginTransaction(err => {
+      if (err) {
+        console.error('Transaction error:', err);
+        return res.status(500).json({ message: 'Error al iniciar la transacción', error: err.message });
+      }
+
+      // Insert propietario
+      con.query('Update propietarios set tipo_propietario_id = ?, cedula = ? where id = ?', 
+        [directionData.loteTipoIdentificacion, directionData.loteIdentificacion, directionData.lote_id], 
+        (err, propietarioResult) => {
+          if (err) {
+            return con.rollback(() => {
+              console.error('Propietario insertion error:', err);
+              res.status(500).json({ message: 'Error al insertar propietario', error: err.message });
+            });
+          }
+
+
+          // Insert lote
+          con.query('Update lotes set numero_plano_catastro = ?, numero_finca = ?, provincia = ?, distrito = ?, canton = ?, senas_descripcion = ? where id = ?',
+            [directionData.numeroPlanoCatastro, directionData.finca, directionData.provincia, directionData.distrito, directionData.canton, directionData.otrasSenas, directionData.lote_id],
+            (err, loteResult) => {
+              if (err) {
+                return con.rollback(() => {
+                  console.error('Lote insertion error:', err);
+                  res.status(500).json({ message: 'Error al insertar lote', error: err.message });
+                });
+              }
+
+              // Insert proyecto
+              const headOfFamily = familyMembers.find(member => member.tipoMiembro == 'Jefe/a de Familia' || member.tipoMiembro == 'jefe/a de familia');
+              const projectName = `${headOfFamily.nombre} ${headOfFamily.primerApellido} ${headOfFamily.segundoApellido}`;
+
+              con.query('Update proyectos set nombre = ?, descripcion = ?, grupo_proyecto_id = ?, tipo_bono_id = ?, variante_bono_id = ?, fecha_ingreso = CURDATE(), presupuesto = ?, avaluo = ?, entidad_id = ?, centro_negocio_id = ?, analista_asigna_entidad_id = ?, analista_asigna_ipsum_id = ?, fiscal_id = ?, ingeniero_id = ?, promotor_externo_id = ?, promotor_interno_id = ?, codigo_apc = ?, codigo_cfia = ?, fis = ? where id = ?',
+                [projectName, projectData.desc, projectData.grupoSeleccionado, projectData.bonoSeleccionado, 
+                 newSubtipoSeleccionado, formDataAdmin.presupuesto, formDataAdmin.avaluo, 
+                 formDataAdmin.entidad, formDataAdmin.entidadSecundaria, formDataAdmin.analistaEntidad, 
+                 formDataAdmin.analistaIPSUM, formDataAdmin.fiscalAsignado, formDataAdmin.ingenieroAsignado, 
+                 formDataAdmin.promotorEntidad, formDataAdmin.Promotor_Ipsum, formDataAdmin.apc, 
+                 formDataAdmin.cfia, projectData.hasFIS, projectData.idProyecto],
+                (err, proyectoResult) => {
+                  if (err) {
+                    return con.rollback(() => {
+                      console.error('Proyecto insertion error:', err);
+                      res.status(500).json({ message: 'Error al insertar proyecto', error: err.message });
+                    });
+                  }
+
+
+                  console.log(familyMembers)
+                  for (let i = 0; i < familyMembers.length; i++) {
+
+                    if (familyMembers[i].id) {
+                      con.query('Update familias set tipo_miembro = ?, nombre = ?, apellido1 = ?, apellido2 = ?, cedula = ?, tipo_cedula = ?, ingreso = ?, tipo_ingreso = ?, telefono = ?, tipo_telefono = ?, email = ?, adulto_mayor = ?, discapacidad = ? where id = ?',
+                        [familyMembers[i].tipoMiembro, familyMembers[i].nombre, familyMembers[i].primerApellido, familyMembers[i].segundoApellido, familyMembers[i].identificacion, familyMembers[i].tipoIdentificacion, familyMembers[i].ingresos, familyMembers[i].tipoIngresos, familyMembers[i].telefono, familyMembers[i].tipoTelefono, familyMembers[i].email, familyMembers[i].adultoMayor, familyMembers[i].discapacidad, familyMembers[i].id],
+                        (err) => {
+                          if (err) {
+                            return con.rollback(() => {
+                              console.error('Family members insertion error:', err);
+                              res.status(500).json({ message: 'Error al insertar miembros de la familia', error: err.message });
+                            });
+                          }});
+                    } else {
+                      con.query('Insert into familias (proyecto_id, tipo_miembro, nombre, apellido1, apellido2, cedula, tipo_cedula, ingreso, tipo_ingreso, telefono, tipo_telefono , email, adulto_mayor, discapacidad) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                        [projectData.idProyecto, familyMembers[i].tipoMiembro.toLowerCase(), familyMembers[i].nombre, familyMembers[i].primerApellido, familyMembers[i].segundoApellido, familyMembers[i].identificacion, familyMembers[i].tipoIdentificacion, familyMembers[i].ingresos, familyMembers[i].tipoIngresos, familyMembers[i].telefono, familyMembers[i].tipoTelefono, familyMembers[i].email, familyMembers[i].adultoMayor, familyMembers[i].discapacidad],
+                        (err) => {
+                          if (err) {
+                            return con.rollback(() => {
+                              console.error('Family members insertion error:', err);
+                              res.status(500).json({ message: 'Error al insertar miembros de la familia', error: err.message });
+                            });
+                          }});
+                    }
+
+
+                  }
+
+                  con.commit(err => {
+                    if (err) {
+                      return con.rollback(() => {
+                        console.error('Commit error:', err);
+                        res.status(500).json({ message: 'Error al finalizar la transacción', error: err.message });
+                      });
+                    }
+                    console.log("Proyecto guardado exitosamente")
+                    res.status(200).json({ message: 'Proyecto guardado exitosamente' });
+                  });
+
+                  
+                }
+              );
+            }
+          );
+        }
+      );
+    });
+
+    } catch (err) {
+        console.log(err)
+    }
+  });
+});
+
+app.get('/getEtapas', (req, res) => {
+  con.query('call getEtapas()', (err, results) => {
+      if (err) {
+          return res.json(err)
+      }
+      return res.status(200).json(results)
   })
 })
 
