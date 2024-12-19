@@ -78,6 +78,17 @@ app.get('/projectNames', (req, res) => {
   const query = req.query;
   const values = query.value.split(',');
 
+  const isLabel = query.label ? true : false;
+
+  if (!isLabel) {
+    con.query('SELECT * FROM proyectos', (err, results, asd) => {
+      if (err) {
+        return res.json(err);
+      }
+      return res.status(200).json(results);
+    });
+  }
+
   con.query('SELECT * FROM proyectos WHERE ?? in (?)', [query.label, values], (err, results, asd) => {
       if (err) {
         console.log(err)
