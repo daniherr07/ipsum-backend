@@ -286,21 +286,14 @@ function organizeBonos(data){
 
 app.post('/saveData/', (req, res) => {
     const { projectData, familyMembers, directionData, formDataAdmin } = req.body;
-
-    console.log(
-      projectData,
-      familyMembers,
-      directionData,
-      formDataAdmin
-    )
   
     // Validate that there's at least one family member who is the head of the household
-    const hasHeadOfHousehold = familyMembers.some(member => member.tipo === 'Jefe/a de Familia');
+    const hasHeadOfHousehold = familyMembers.some(member => member.tipoMiembro === 'Jefe/a de Familia');
     if (!hasHeadOfHousehold) {
       return res.status(400).json({ message: 'Debe haber al menos un miembro de familia que sea jefe/a de hogar' });
     }
 
-    const newSubtipoSeleccionado = projectData.subtipoSeleccionado + 1
+    const newSubtipoSeleccionado = projectData.subtipoSeleccionado
   
     if (!newSubtipoSeleccionado) {
         console.log("error 1")
@@ -358,8 +351,8 @@ app.post('/saveData/', (req, res) => {
                 const loteId = loteResult.insertId;
   
                 // Insert proyecto
-                const headOfFamily = familyMembers.find(member => member.tipo === 'Jefe/a de Familia');
-                const projectName = `${headOfFamily.nombre} ${headOfFamily.apellido1} ${headOfFamily.apellido2}`;
+                const headOfFamily = familyMembers.find(member => member.tipoMiembro == 'Jefe/a de Familia');
+                const projectName = `${headOfFamily.nombre} ${headOfFamily.primerApellido} ${headOfFamily.segundoApellido}`;
   
                 con.query('INSERT INTO proyectos (nombre, descripcion, grupo_proyecto_id, tipo_bono_id, variante_bono_id, lote_id, fecha_ingreso, presupuesto, avaluo, entidad_id, centro_negocio_id, analista_asigna_entidad_id, analista_asigna_ipsum_id, fiscal_id, ingeniero_id, promotor_externo_id, promotor_interno_id, codigo_apc, codigo_cfia, fis) VALUES (?, ?, ?, ?, ?, ?, CURDATE(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                   [projectName, projectData.desc, projectData.grupoSeleccionado, projectData.bonoSeleccionado, 
@@ -377,12 +370,12 @@ app.post('/saveData/', (req, res) => {
                     }
   
                     const proyectoId = proyectoResult.insertId;
-                    console.log(familyMembers)
+
   
                     // Insert family members
                     const familyValues = familyMembers.map(member => [
                       proyectoId, 
-                      member.tipo || null, 
+                      member.tipoMiembro || null, 
                       member.nombre || null, 
                       member.primerApellido || null, 
                       member.segundoApellido || null,
@@ -406,25 +399,36 @@ app.post('/saveData/', (req, res) => {
                             res.status(500).json({ message: 'Error al insertar miembros de la familia', error: err.message });
                           });
                         }
-  
-                        con.commit(err => {
-                          if (err) {
-                            return con.rollback(() => {
-                              console.error('Commit error:', err);
-                              res.status(500).json({ message: 'Error al finalizar la transacción', error: err.message });
-                            });
-                          }
-                          res.status(200).json({ message: 'Proyecto guardado exitosamente', proyectoId });
+                      
+                        
+                      
+                      }
+                    
+                        
+                      
+                    );
+                    con.commit(err => {
+                      if (err) {
+                        return con.rollback(() => {
+                          console.error('Commit error:', err);
+                          res.status(500).json({ message: 'Error al finalizar la transacción', error: err.message });
                         });
                       }
-                    );
+                      console.log("Proyecto guardado exitosamente")
+                      res.status(200).json({ message: 'Proyecto guardado exitosamente', ok: true });
+                    });
                   }
                 );
               }
             );
           }
         );
+      
+
+      
       });
+
+
 
       } catch (err) {
           console.log(err)
