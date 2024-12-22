@@ -326,7 +326,8 @@ app.post('/saveData/', (req, res) => {
   
         // Insert propietario
         con.query('INSERT INTO propietarios (tipo_propietario_id, cedula) VALUES (?, ?)', 
-          [directionData.loteTipoIdentificacion, directionData.loteIdentificacion], 
+          [directionData.loteTipoIdentificacion == "pendiente" ? null : directionData.loteTipoIdentificacion, 
+            directionData.loteIdentificacion == "pendiente" ? null : directionData.loteIdentificacion], 
           (err, propietarioResult) => {
             if (err) {
               return con.rollback(() => {
@@ -355,12 +356,25 @@ app.post('/saveData/', (req, res) => {
                 const projectName = `${headOfFamily.nombre} ${headOfFamily.primerApellido} ${headOfFamily.segundoApellido}`;
   
                 con.query('INSERT INTO proyectos (nombre, descripcion, grupo_proyecto_id, tipo_bono_id, variante_bono_id, lote_id, fecha_ingreso, presupuesto, avaluo, entidad_id, centro_negocio_id, analista_asigna_entidad_id, analista_asigna_ipsum_id, fiscal_id, ingeniero_id, promotor_externo_id, promotor_interno_id, codigo_apc, codigo_cfia, fis) VALUES (?, ?, ?, ?, ?, ?, CURDATE(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                  [projectName, projectData.desc, projectData.grupoSeleccionado, projectData.bonoSeleccionado, 
-                   newSubtipoSeleccionado, loteId, formDataAdmin.presupuesto, formDataAdmin.avaluo, 
-                   formDataAdmin.entidad, formDataAdmin.entidadSecundaria, formDataAdmin.analistaEntidad, 
-                   formDataAdmin.analistaIPSUM, formDataAdmin.fiscalAsignado, formDataAdmin.ingenieroAsignado, 
-                   formDataAdmin.promotorEntidad, formDataAdmin.Promotor_Ipsum, formDataAdmin.apc, 
-                   formDataAdmin.cfia, projectData.hasFIS],
+                  [projectName, 
+                   projectData.desc, 
+                   projectData.grupoSeleccionado, 
+                   projectData.bonoSeleccionado, 
+                   newSubtipoSeleccionado, 
+                   loteId, 
+                   formDataAdmin.presupuesto == "" ? null : formDataAdmin.presupuesto, 
+                   formDataAdmin.avaluo == "" ? null : formDataAdmin.avaluo, 
+                   formDataAdmin.entidad, 
+                   formDataAdmin.entidadSecundaria == "pendiente" ? null : formDataAdmin.entidadSecundaria, 
+                   formDataAdmin.analistaEntidad == "pendiente" ? null : formDataAdmin.analistaEntidad, 
+                   formDataAdmin.analistaIPSUM, 
+                   formDataAdmin.fiscalAsignado == "pendiente" ? null : formDataAdmin.fiscalAsignado, 
+                   formDataAdmin.ingenieroAsignado, 
+                   formDataAdmin.promotorEntidad == "pendiente" ? null : formDataAdmin.promotorEntidad, 
+                   formDataAdmin.Promotor_Ipsum, 
+                   formDataAdmin.apc, 
+                   formDataAdmin.cfia, 
+                   projectData.hasFIS],
                   (err, proyectoResult) => {
                     if (err) {
                       return con.rollback(() => {
@@ -387,10 +401,11 @@ app.post('/saveData/', (req, res) => {
                       member.tipoTelefono || null, 
                       member.email || null, 
                       member.adultoMayor || false, 
-                      member.discapacidad || false
+                      member.discapacidad || false,
+                      member.cedulaFile || null
                     ]);
   
-                    con.query('INSERT INTO familias (proyecto_id, tipo_miembro, nombre, apellido1, apellido2, cedula, tipo_cedula, ingreso, tipo_ingreso, telefono, tipo_telefono, email, adulto_mayor, discapacidad) VALUES ?',
+                    con.query('INSERT INTO familias (proyecto_id, tipo_miembro, nombre, apellido1, apellido2, cedula, tipo_cedula, ingreso, tipo_ingreso, telefono, tipo_telefono, email, adulto_mayor, discapacidad, imagen_cedula) VALUES ?',
                       [familyValues],
                       (err) => {
                         if (err) {
@@ -607,7 +622,7 @@ app.post('/updateData/', (req, res) => {
           if (err) {
             return con.rollback(() => {
               console.error('Propietario insertion error:', err);
-              res.status(500).json({ message: 'Error al insertar propietario', error: err.message });
+              return res.status(500).json({ message: 'Error al insertar propietario', error: err.message });
             });
           }
 
@@ -628,41 +643,83 @@ app.post('/updateData/', (req, res) => {
               const projectName = `${headOfFamily.nombre} ${headOfFamily.primerApellido} ${headOfFamily.segundoApellido}`;
 
               con.query('Update proyectos set nombre = ?, descripcion = ?, grupo_proyecto_id = ?, tipo_bono_id = ?, variante_bono_id = ?, fecha_ingreso = CURDATE(), presupuesto = ?, avaluo = ?, entidad_id = ?, centro_negocio_id = ?, analista_asigna_entidad_id = ?, analista_asigna_ipsum_id = ?, fiscal_id = ?, ingeniero_id = ?, promotor_externo_id = ?, promotor_interno_id = ?, codigo_apc = ?, codigo_cfia = ?, fis = ? where id = ?',
-                [projectName, projectData.desc, projectData.grupoSeleccionado, projectData.bonoSeleccionado, 
-                 newSubtipoSeleccionado, formDataAdmin.presupuesto, formDataAdmin.avaluo, 
-                 formDataAdmin.entidad, formDataAdmin.entidadSecundaria, formDataAdmin.analistaEntidad, 
-                 formDataAdmin.analistaIPSUM, formDataAdmin.fiscalAsignado, formDataAdmin.ingenieroAsignado, 
-                 formDataAdmin.promotorEntidad, formDataAdmin.Promotor_Ipsum, formDataAdmin.apc, 
-                 formDataAdmin.cfia, projectData.hasFIS, projectData.idProyecto],
+                [projectName, 
+                  projectData.desc, 
+                  projectData.grupoSeleccionado, 
+                  projectData.bonoSeleccionado, 
+                  newSubtipoSeleccionado,
+                  formDataAdmin.presupuesto == "" ? null : formDataAdmin.presupuesto, 
+                  formDataAdmin.avaluo == "" ? null : formDataAdmin.avaluo, 
+                  formDataAdmin.entidad, 
+                  formDataAdmin.entidadSecundaria == "pendiente" ? null : formDataAdmin.entidadSecundaria, 
+                  formDataAdmin.analistaEntidad == "pendiente" ? null : formDataAdmin.analistaEntidad, 
+                  formDataAdmin.analistaIPSUM, 
+                  formDataAdmin.fiscalAsignado == "pendiente" ? null : formDataAdmin.fiscalAsignado, 
+                  formDataAdmin.ingenieroAsignado, 
+                  formDataAdmin.promotorEntidad == "pendiente" ? null : formDataAdmin.promotorEntidad, 
+                  formDataAdmin.Promotor_Ipsum, 
+                  formDataAdmin.apc, 
+                  formDataAdmin.cfia, 
+                  projectData.hasFIS, 
+                 projectData.idProyecto],
                 (err, proyectoResult) => {
                   if (err) {
                     return con.rollback(() => {
                       console.error('Proyecto insertion error:', err);
-                      res.status(500).json({ message: 'Error al insertar proyecto', error: err.message });
+                      return res.status(500).json({ message: 'Error al insertar proyecto', error: err.message });
                     });
                   }
 
 
                   for (let i = 0; i < familyMembers.length; i++) {
+                    console.log(familyMembers[i])
 
                     if (familyMembers[i].id) {
-                      con.query('Update familias set tipo_miembro = ?, nombre = ?, apellido1 = ?, apellido2 = ?, cedula = ?, tipo_cedula = ?, ingreso = ?, tipo_ingreso = ?, telefono = ?, tipo_telefono = ?, email = ?, adulto_mayor = ?, discapacidad = ? where id = ?',
-                        [familyMembers[i].tipoMiembro, familyMembers[i].nombre, familyMembers[i].primerApellido, familyMembers[i].segundoApellido, familyMembers[i].identificacion, familyMembers[i].tipoIdentificacion, familyMembers[i].ingresos, familyMembers[i].tipoIngresos, familyMembers[i].telefono, familyMembers[i].tipoTelefono, familyMembers[i].email, familyMembers[i].adultoMayor, familyMembers[i].discapacidad, familyMembers[i].id],
+                      con.query('Update familias set tipo_miembro = ?, nombre = ?, apellido1 = ?, apellido2 = ?, cedula = ?, tipo_cedula = ?, ingreso = ?, tipo_ingreso = ?, telefono = ?, tipo_telefono = ?, email = ?, adulto_mayor = ?, discapacidad = ?, imagen_cedula = ? where id = ?',
+                        [familyMembers[i].tipoMiembro, 
+                        familyMembers[i].nombre, 
+                        familyMembers[i].primerApellido, 
+                        familyMembers[i].segundoApellido, 
+                        familyMembers[i].identificacion, 
+                        familyMembers[i].tipoIdentificacion, 
+                        familyMembers[i].ingresos == "" ? null : familyMembers[i].ingresos, 
+                        familyMembers[i].tipoIngresos == "" ? null : familyMembers[i].tipoIngresos, 
+                        familyMembers[i].telefono, 
+                        familyMembers[i].tipoTelefono == "" ? null : familyMembers[i].tipoTelefono, 
+                        familyMembers[i].email, 
+                        familyMembers[i].adultoMayor, 
+                        familyMembers[i].discapacidad, 
+                        familyMembers[i].cedulaFile ? familyMembers[i].cedulaFile : null, 
+                        familyMembers[i].id],
                         (err) => {
                           if (err) {
                             return con.rollback(() => {
                               console.error('Family members insertion error:', err);
-                              res.status(500).json({ message: 'Error al insertar miembros de la familia', error: err.message });
+                              return res.status(500).json({ message: 'Error al insertar miembros de la familia', error: err.message });
                             });
                           }});
                     } else {
-                      con.query('Insert into familias (proyecto_id, tipo_miembro, nombre, apellido1, apellido2, cedula, tipo_cedula, ingreso, tipo_ingreso, telefono, tipo_telefono , email, adulto_mayor, discapacidad) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                        [projectData.idProyecto, familyMembers[i].tipoMiembro.toLowerCase(), familyMembers[i].nombre, familyMembers[i].primerApellido, familyMembers[i].segundoApellido, familyMembers[i].identificacion, familyMembers[i].tipoIdentificacion, familyMembers[i].ingresos, familyMembers[i].tipoIngresos, familyMembers[i].telefono, familyMembers[i].tipoTelefono, familyMembers[i].email, familyMembers[i].adultoMayor, familyMembers[i].discapacidad],
+                      con.query('Insert into familias (proyecto_id, tipo_miembro, nombre, apellido1, apellido2, cedula, tipo_cedula, ingreso, tipo_ingreso, telefono, tipo_telefono , email, adulto_mayor, discapacidad, imagen_cedula) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                        [projectData.idProyecto, 
+                          familyMembers[i].tipoMiembro.toLowerCase(), 
+                          familyMembers[i].nombre, 
+                          familyMembers[i].primerApellido, 
+                          familyMembers[i].segundoApellido, 
+                          familyMembers[i].identificacion, 
+                          familyMembers[i].tipoIdentificacion, 
+                          familyMembers[i].ingresos == "" ? null : familyMembers[i].ingresos, 
+                          familyMembers[i].tipoIngresos == "" ? null : familyMembers[i].tipoIngresos, 
+                          familyMembers[i].telefono, 
+                          familyMembers[i].tipoTelefono == "" ? null : familyMembers[i].tipoTelefono, 
+                          familyMembers[i].email, 
+                          familyMembers[i].adultoMayor, 
+                          familyMembers[i].discapacidad, 
+                          familyMembers[i].cedulaFile ? familyMembers[i].cedulaFile : null],
                         (err) => {
                           if (err) {
                             return con.rollback(() => {
                               console.error('Family members insertion error:', err);
-                              res.status(500).json({ message: 'Error al insertar miembros de la familia', error: err.message });
+                              return res.status(500).json({ message: 'Error al insertar miembros de la familia', error: err.message });
                             });
                           }});
                     }
