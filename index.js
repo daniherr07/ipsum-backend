@@ -701,7 +701,7 @@ app.post('/updateData/', (req, res) => {
                     } else {
                       con.query('Insert into familias (proyecto_id, tipo_miembro, nombre, apellido1, apellido2, cedula, tipo_cedula, ingreso, tipo_ingreso, telefono, tipo_telefono , email, adulto_mayor, discapacidad, imagen_cedula) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                         [projectData.idProyecto, 
-                          familyMembers[i].tipoMiembro.toLowerCase(), 
+                          familyMembers[i].tipoMiembro, 
                           familyMembers[i].nombre, 
                           familyMembers[i].primerApellido, 
                           familyMembers[i].segundoApellido, 
