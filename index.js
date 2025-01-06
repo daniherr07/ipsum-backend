@@ -80,14 +80,14 @@ app.get('/projectNames', (req, res) => {
   const values = query.value.split(',');
 
   if (query.label == undefined || query.label == "undefined") {
-    con.query('SELECT * FROM proyectos', (err, results, asd) => {
+    con.query('SELECT * FROM proyectos order by fecha_ingreso desc', (err, results, asd) => {
       if (err) {
         return res.json(err);
       }
       return res.status(200).json(results);
     });
   } else {
-    con.query('SELECT * FROM proyectos WHERE ?? in (?)', [query.label, values], (err, results, asd) => {
+    con.query('SELECT * FROM proyectos WHERE ?? in (?) order by fecha_ingreso desc', [query.label, values], (err, results, asd) => {
       if (err) {
         console.log(err)
           return res.json(err);
@@ -105,7 +105,7 @@ app.get('/getData/:name', (req, res) => {
         if (err) {
             return res.json(err)
         }
-        return res.status(200).json(results[0])
+        return res.status(200).json(results)
     })
 })
 
@@ -122,8 +122,6 @@ app.get('/getUsers', (req, res) => {
     }
 })
 })
-
-
 
 app.post('/login', (req, res) => {
     const {user, psw} = req.body
@@ -152,7 +150,7 @@ app.post('/login', (req, res) => {
                     return res.status(200).json({msj: "Usuario autorizado", authorized: true, newUser: true, rol: results[0][0].role_name})
                 } else{
                     console.log("Usuario viejo")
-                    return res.status(200).json({msj: "Usuario autorizado", authorized: true, newUser: false, rol: results[0][0].role_name, user: results[0][0].user_name} )
+                    return res.status(200).json({msj: "Usuario autorizado", authorized: true, id: results[0][0].id , newUser: false, rol: results[0][0].role_name, user: results[0][0].user_name}, )
                 }
             } else{
                 return res.status(400).json({msj: "Bad user or password"})
@@ -451,7 +449,6 @@ app.post('/saveData/', (req, res) => {
     });
 });
   
-
 app.post('/updateUser', (req, res) => {
   const {id, lastName1, lastName2, userName, roles} = req.body
 
@@ -794,6 +791,19 @@ app.post('/updateEtapa', (req, res) => {
   })
 })
 
+
+app.post('/insertBitacora', (req, res) => {
+  const {descripcion, color, usuario, proyecto} = req.body
+
+  con.query('insert into entradas_bitacora (descripcion, color, usuario_id, proyecto_id, fecha_ingreso) values (?, ? ,?, ?, curdate())', [descripcion, color, usuario, proyecto], (err, results) => {
+      if (err) {
+        console.log(err)
+          return res.json(err)
+      }
+      console.log(results)
+      return res.status(200).json(results)
+  })
+})
 
 app.listen(3001, () => {
 })
