@@ -76,18 +76,17 @@ app.get('/filter', (req, res) => {
 
 app.get('/projectNames', (req, res) => {
   const query = req.query;
-  console.log(query)
   const values = query.value.split(',');
 
   if (query.label == undefined || query.label == "undefined") {
-    con.query('SELECT * FROM proyectos order by fecha_ingreso desc', (err, results, asd) => {
+    con.query('SELECT nombre, id, estado_color FROM proyectos order by fecha_ingreso desc', (err, results, asd) => {
       if (err) {
         return res.json(err);
       }
       return res.status(200).json(results);
     });
   } else {
-    con.query('SELECT * FROM proyectos WHERE ?? in (?) order by fecha_ingreso desc', [query.label, values], (err, results, asd) => {
+    con.query('SELECT nombre, id, estado_color FROM proyectos WHERE ?? in (?) order by fecha_ingreso desc', [query.label, values], (err, results, asd) => {
       if (err) {
         console.log(err)
           return res.json(err);
@@ -795,13 +794,20 @@ app.post('/updateEtapa', (req, res) => {
 app.post('/insertBitacora', (req, res) => {
   const {descripcion, color, usuario, proyecto} = req.body
 
-  con.query('insert into entradas_bitacora (descripcion, color, usuario_id, proyecto_id, fecha_ingreso) values (?, ? ,?, ?, curdate())', [descripcion, color, usuario, proyecto], (err, results) => {
+  con.query('insert into entradas_bitacora (descripcion, color, usuario_id, proyecto_id, fecha_ingreso) values (?, ? ,?, ?, now())', [descripcion, color, usuario, proyecto], (err, results) => {
       if (err) {
         console.log(err)
           return res.json(err)
       }
-      console.log(results)
-      return res.status(200).json(results)
+
+      con.query('update proyectos set estado_color = ? where id = ?', [color, proyecto], (err, results) => {
+        if (err) {
+          console.log(err)
+            return res.json(err)
+        }
+        console.log(results)
+        return res.status(200).json(results)
+      })
   })
 })
 
