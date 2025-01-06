@@ -792,9 +792,11 @@ app.post('/updateEtapa', (req, res) => {
 
 
 app.post('/insertBitacora', (req, res) => {
-  const {descripcion, color, usuario, proyecto} = req.body
+  const {descripcion, color, usuario, proyecto, time} = req.body
+  var newDate = new Date(time)
 
-  con.query('insert into entradas_bitacora (descripcion, color, usuario_id, proyecto_id, fecha_ingreso) values (?, ? ,?, ?, now())', [descripcion, color, usuario, proyecto], (err, results) => {
+
+  con.query('insert into entradas_bitacora (descripcion, color, usuario_id, proyecto_id, fecha_ingreso) values (?, ? ,?, ?, ?)', [descripcion, color, usuario, proyecto, newDate], (err, results) => {
       if (err) {
         console.log(err)
           return res.json(err)
@@ -810,6 +812,7 @@ app.post('/insertBitacora', (req, res) => {
       })
   })
 })
+
 
 app.listen(3001, () => {
 })
