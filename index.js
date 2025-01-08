@@ -77,16 +77,17 @@ app.get('/filter', (req, res) => {
 app.get('/projectNames', (req, res) => {
   const query = req.query;
   const values = query.value.split(',');
+  const order = query.order
 
   if (query.label == undefined || query.label == "undefined") {
-    con.query('SELECT nombre, id, estado_color FROM proyectos order by fecha_ingreso desc', (err, results, asd) => {
+    con.query(`SELECT nombre, id, estado_color FROM proyectos order by fecha_ingreso ${order}`, (err, results) => {
       if (err) {
         return res.json(err);
       }
       return res.status(200).json(results);
     });
   } else {
-    con.query('SELECT nombre, id, estado_color FROM proyectos WHERE ?? in (?) order by fecha_ingreso desc', [query.label, values], (err, results, asd) => {
+    con.query(`SELECT nombre, id, estado_color FROM proyectos WHERE ?? in (?) order by fecha_ingreso ${order}`, [query.label, values ], (err, results, asd) => {
       if (err) {
         console.log(err)
           return res.json(err);
@@ -550,7 +551,7 @@ app.post('/changeStatus', (req, res) => {
         if (err) {
           return res.status(400).json(err)    
         }
-        return res.status(200).json(results[0])
+        return res.status(200).json(results)
     } catch (error){
       console.log(error.code)
         return res.status(400).json(error)
@@ -569,6 +570,23 @@ app.get('/getProjectDetails/:id', (req, res) => {
   })
 })
 
+app.get('/getEntidades', (req, res) => {
+  con.query('select * from entidades', (err, results) => {
+      if (err) {
+          return res.json(err)
+      }
+      return res.status(200).json(results)
+  })
+})
+
+app.get('/getBonosSimple', (req, res) => {
+  con.query('select * from tipos_bono', (err, results) => {
+      if (err) {
+          return res.json(err)
+      }
+      return res.status(200).json(results)
+  })
+})
 
 app.post('/updateData/', (req, res) => {
   const { projectData, familyMembers, directionData, formDataAdmin, deletedMembers } = req.body;
@@ -792,11 +810,11 @@ app.post('/updateEtapa', (req, res) => {
 
 
 app.post('/insertBitacora', (req, res) => {
-  const {descripcion, color, usuario, proyecto, time} = req.body
+  const {descripcion, color, usuario, proyecto, time, tipo} = req.body
   var newDate = new Date(time)
 
 
-  con.query('insert into entradas_bitacora (descripcion, color, usuario_id, proyecto_id, fecha_ingreso) values (?, ? ,?, ?, ?)', [descripcion, color, usuario, proyecto, newDate], (err, results) => {
+  con.query('insert into entradas_bitacora (descripcion, color, usuario_id, proyecto_id, fecha_ingreso, tipo) values (?, ? ,?, ?, ?, ?)', [descripcion, color, usuario, proyecto, newDate, tipo], (err, results) => {
       if (err) {
         console.log(err)
           return res.json(err)
@@ -812,6 +830,77 @@ app.post('/insertBitacora', (req, res) => {
       })
   })
 })
+
+app.post('/insertData', (req, res) => {
+  const {tabla} = req.body
+  const claves = [];
+  const valores = [];
+  
+  for (const [clave, valor] of Object.entries(req.body)) {
+    if (clave !== 'tabla') {
+      claves.push(clave);
+      valores.push(valor);
+    }
+  }
+
+  const clavesConBackticks = claves.map(clave => `\`${clave}\``);
+
+  con.query('insert into ?? (??) values (?)', [tabla,claves, valores], (err, results) => {
+      if (err) {
+        console.log(err)
+          return res.json(err)
+      }
+      console.log(results)
+      return res.status(200).json(results)
+  })
+})
+
+
+app.get('/getGenerics', (req, res) => {
+  const query = req.query;
+  const table = query.table
+
+  con.query('select * from ??', [table], (err, results) => {
+      if (err) {
+          return res.json(err)
+      }
+      return res.status(200).json(results)
+  })
+})
+
+app.post('/genericUpdate', (req, res) => {
+  const {table, dataEdit} = req.body
+  const claves = [];
+  const valores = [];
+
+  
+  for (const [clave, valor] of Object.entries(dataEdit)) {
+      claves.push(clave);
+      valores.push(valor);
+  }
+
+  for (i = 0; i < claves.length; i++) {
+    if (claves[i] !== "id") {
+      console.log("Entro al if porque no es id" )
+      con.query('Update ?? set ?? = ? where id = ?', [table ,claves[i], valores[i], dataEdit.id ], (err, results) => {
+        if (err) {
+          console.log(err)
+            return res.json(err)
+        }
+
+        console.log(results)
+
+      })
+    }
+  }
+  return res.status(200).json({msj: "Actualizado correctamente"})
+
+
+})
+
+
+
+
 
 
 app.listen(3001, () => {
