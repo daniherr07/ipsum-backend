@@ -235,7 +235,8 @@ function organizeAdminData(data) {
           localId: item.localID,  
           Tipo: item.Tipo,
           Nombre: item.Entidad,
-          Centros_de_Negocio: []
+          Centros_de_Negocio: [],
+          activated: item.activated,
         };
         organizedData.Entidad.push(entityData);
       } else if (item.Tipo in organizedData) {
@@ -250,7 +251,7 @@ function organizeAdminData(data) {
       if (item.Tipo === 'Centro_de_Negocios') {
         const entity = organizedData.Entidad.find(e => e.Nombre === item.Entidad);
         if (entity) {
-          const itemData = {localId: item.localID, nombre: item.Centro_de_Negocio}
+          const itemData = {localId: item.localID, nombre: item.Centro_de_Negocio, activated: item.activated}
           entity.Centros_de_Negocio.push(itemData);
         }
       }
@@ -260,20 +261,22 @@ function organizeAdminData(data) {
   }
 
 function organizeBonos(data){
+  console.log(data)
     const result = Object.values(
-        data.reduce((acc, { TipoBonoID, TipoBonoNombre, VarianteID, VarianteNombre }) => {
+        data.reduce((acc, { TipoBonoID, TipoBonoNombre, VarianteID, VarianteNombre, ActivatedBono, ActivatedVariante }) => {
           // Si el TipoBonoID no existe aún en el acumulador, lo inicializamos
           if (!acc[TipoBonoID]) {
             acc[TipoBonoID] = {
               id: TipoBonoID,
               nombre: TipoBonoNombre,
-              subtipos: []
+              subtipos: [],
+              activated: ActivatedBono
             };
           }
       
           // Si la variante no es null, la añadimos al array de subtipos
           if (VarianteID && VarianteNombre) {
-            acc[TipoBonoID].subtipos.push({ id: VarianteID, nombre: VarianteNombre });
+            acc[TipoBonoID].subtipos.push({ id: VarianteID, nombre: VarianteNombre, activated: ActivatedVariante });
           }
       
           return acc;
@@ -898,6 +901,33 @@ app.post('/genericUpdate', (req, res) => {
 
 })
 
+app.post('/updateStatusGenerics', (req, res) => {
+  const {id, activated, table} = req.body
+  const newValue = activated == 0 ? 1 : 0;
+
+  con.query('UPDATE ?? SET activated = ? WHERE id = ?', [table, newValue, id] ,(err, results) => {
+    try{
+        if (err) {
+          return res.status(400).json(err)    
+        }
+        return res.status(200).json(results)
+    } catch (error){
+      console.log(error.code)
+        return res.status(400).json(error)
+        
+    }
+  })
+})
+
+app.get('/getGrupos', (req, res) => {
+
+  con.query('select * from grupos_proyectos', (err, results) => {
+      if (err) {
+          return res.json(err)
+      }
+      return res.status(200).json(results)
+  })
+})
 
 
 
