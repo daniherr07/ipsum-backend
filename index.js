@@ -43,6 +43,7 @@ app.get('/test/:query', (req, res) => {
 
 app.get('/filter', (req, res) => {
   const { table, rol_id, nombre } = req.query;
+  let isDisabled = req.query.activated == 0 ? true : false
   const nombreArray = nombre.split(',');
 
   if (rol_id) {
@@ -52,10 +53,18 @@ app.get('/filter', (req, res) => {
       }
       return res.status(200).json(results);
     });
-  } else {
+  } else if (isDisabled){
+    con.query('SELECT nombre, id from proyectos where activated = 0', [nombreArray[0], nombreArray[1], nombreArray[2], table], (err, results) => {
+      if (err) {
+        return res.json(err);
+      }
+      return res.status(200).json(results);
+    });
 
+  } else {
     if (nombreArray.length > 1) {
-      con.query('SELECT Concat(??, " ", ??, " ", ??) as nombre, id FROM ??', [nombreArray[0], nombreArray[1], nombreArray[2], table], (err, results) => {
+
+      con.query(`SELECT Concat(??, " ", ??, " ", ??) as nombre, id FROM ??`, [nombreArray[0], nombreArray[1], nombreArray[2], table], (err, results) => {
         if (err) {
           return res.json(err);
         }
@@ -63,7 +72,7 @@ app.get('/filter', (req, res) => {
       });
       
     } else {
-      con.query('SELECT ??, id FROM ??', [nombre, table], (err, results) => {
+      con.query(`SELECT ??, id FROM ?? ${isDisabled == false && "where activated = 1"} `, [nombre, table], (err, results) => {
         if (err) {
           return res.json(err);
         }
@@ -78,20 +87,29 @@ app.get('/projectNames', (req, res) => {
   const query = req.query;
   const values = query.value.split(',');
   const order = query.order
+  const isDisabled = query.isDisabled
+  const label = query.label.split(',')
+
+  console.log(query)
 
   if (query.label == undefined || query.label == "undefined") {
-    con.query(`SELECT nombre, id, estado_color FROM proyectos order by fecha_ingreso ${order}`, (err, results) => {
+    con.query(`SELECT nombre, id, estado_color FROM proyectos order by fecha_ingreso ${order} `, (err, results) => {
       if (err) {
+        console.log(err)
         return res.json(err);
       }
+
+      console.log(results)
       return res.status(200).json(results);
     });
   } else {
-    con.query(`SELECT nombre, id, estado_color FROM proyectos WHERE ?? in (?) order by fecha_ingreso ${order}`, [query.label, values ], (err, results, asd) => {
+    con.query(`SELECT nombre, id, estado_color FROM proyectos WHERE ?? in (?) and activated = ${isDisabled}  order by fecha_ingreso ${order} `, [label[0], values ], (err, results, asd) => {
       if (err) {
         console.log(err)
           return res.json(err);
       }
+      console.log(results)
+      console.log(`SELECT nombre, id, estado_color FROM proyectos WHERE ${label[0]} and activated = ${isDisabled} in ${values}  order by fecha_ingreso ${order} `)
       return res.status(200).json(results);
     });
   }
@@ -922,6 +940,37 @@ app.post('/updateStatusGenerics', (req, res) => {
 app.get('/getGrupos', (req, res) => {
 
   con.query('select * from grupos_proyectos', (err, results) => {
+      if (err) {
+          return res.json(err)
+      }
+      return res.status(200).json(results)
+  })
+})
+
+app.post('/deleteProyecto', (req, res) => {
+  const {id, currentStatus} = req.body
+  let newStatus = currentStatus == 1 ? 0 : 1
+
+  con.query('UPDATE proyectos SET activated = ? WHERE id = ?', [newStatus, id] ,(err, results) => {
+    try{
+        if (err) {
+          return res.status(400).json(err)    
+        }
+        return res.status(200).json(results)
+    } catch (error){
+      console.log(error.code)
+        return res.status(400).json(error)
+        
+    }
+  })
+})
+
+app.get('/getEmails', (req, res) => {
+  const query = req.query;
+  const id_analista = query.id_analista
+  const id_ingeniero = query.id_ingeniero
+
+  con.query('select correo_electronico from usuarios where id in (?)',[[id_analista, id_ingeniero]], (err, results) => {
       if (err) {
           return res.json(err)
       }
