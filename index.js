@@ -2,6 +2,9 @@ const express = require('express')
 const app = express()
 const cors = require('cors')
 const bodyParser = require('body-parser');
+const generatePassword = require('generate-password')
+const nodemailer = require("nodemailer");
+require('dotenv').config()
 
 
 app.use(cors())
@@ -11,11 +14,11 @@ app.use(express.json())
 
 var mysql = require("mysql2");
 
-var hostname = "x6j.h.filess.io";
-var database = "ipsum_warmpenwhy";
-var port = "3307";
-var username = "ipsum_warmpenwhy";
-var password = "0e9e732d794b25a60b1b65e2067c23379da002a7";
+var hostname = "ipsumdb.mysql.database.azure.com";
+var database = "ipsumdb";
+var port = "3306";
+var username = "ipsumadmin";
+var password = "0e9e732d794b25a60b1b65e2067c23379da002a7*";
 
 var con = mysql.createConnection({
     host: hostname,
@@ -978,6 +981,77 @@ app.get('/getEmails', (req, res) => {
   })
 })
 
+app.post('/forgetPassword', (req, res) => {
+  const body = req.body;
+  const email = body.email
+
+  con.query('select * from usuarios where correo_electronico = ?',[email], async (err, results) => {
+      if (err) {
+        
+          return res.json(err)
+      }
+
+      if (results.length == 0) {
+        console.log("no hay correo")
+        res.status(200).json({noUser: true, results: results})
+        
+      } else {
+        console.log("Si hubo correo")
+
+        const newPassword = generatePassword.generate({
+          length: 10,
+          numbers: true
+        })
+
+        const transporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: {
+            user: process.env.EMAIL_USER, // Tu correo de Gmail
+            pass: process.env.EMAIL_PASS  // Tu contraseña de aplicación de Gmail
+          }
+        });
+
+        
+
+        const mailOptions = {
+          from: process.env.EMAIL_USER,
+          to: email, // Convertir array de destinatarios a string
+          subject: "Recuperacion de contraseña",
+          html: `<p>Su nueva contraseña temporal es ${newPassword}, por favor iniciar sesión y cambiar a una nueva contraseña</p>` // Puedes usar HTML en el contenido
+        };
+    
+        
+        // Enviar el correo
+        const info = await transporter.sendMail(mailOptions);
+
+        con.query('Update usuarios set password = ?, estado = 0 where correo_electronico = ?',[newPassword, email], (err, results) => {
+          if (err) {
+            console.log(err)
+              return res.json(err)
+          }
+          
+    
+          return res.status(200).json(results)
+        })
+      }
+  })
+})
+
+app.post('/pushPrueba', (req, res) => {
+  console.log("llego aca")
+  const body = req.body;
+  const token = body.token
+  console.log(req.body)
+
+  con.query('insert into tokenTest (token) values (?)',[token], (err, results) => {
+      if (err) {
+        
+          return res.json(err)
+      }
+
+      return res.status(200).json(results)
+  })
+})
 
 
 
