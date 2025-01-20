@@ -87,35 +87,65 @@ app.get('/filter', (req, res) => {
 });
 
 app.get('/projectNames', (req, res) => {
+
+
   const query = req.query;
+  console.log(query)
   const values = query.value.split(',');
   const order = query.order
   const isDisabled = query.isDisabled
   const label = query.label.split(',')
+  const etapa_id = query.etapa_id
+  const tipo_bono_id = query.tipo_bono_id
 
-  console.log(query)
+  let sqlQuery = "SELECT nombre, id, estado_color FROM proyectos  "
+  console.log(label != "undefined")
 
-  if (query.label == undefined || query.label == "undefined") {
-    con.query(`SELECT nombre, id, estado_color FROM proyectos order by fecha_ingreso ${order} `, (err, results) => {
-      if (err) {
-        console.log(err)
-        return res.json(err);
-      }
-
-      console.log(results)
-      return res.status(200).json(results);
-    });
-  } else {
-    con.query(`SELECT nombre, id, estado_color FROM proyectos WHERE ?? in (?) and activated = ${isDisabled}  order by fecha_ingreso ${order} `, [label[0], values ], (err, results, asd) => {
-      if (err) {
-        console.log(err)
-          return res.json(err);
-      }
-      console.log(results)
-      console.log(`SELECT nombre, id, estado_color FROM proyectos WHERE ${label[0]} and activated = ${isDisabled} in ${values}  order by fecha_ingreso ${order} `)
-      return res.status(200).json(results);
-    });
+  if ((label != "undefined") && (values != "undefined")) {
+    sqlQuery += `WHERE ${label} in (${values})`
   }
+
+  if (etapa_id != "undefined") {
+    if ((label != "undefined") && (values != "undefined")) {
+      sqlQuery += ` and etapa_actual_id = ${etapa_id}`
+    } else{
+      sqlQuery += ` WHERE etapa_actual_id = ${etapa_id}`
+    }
+    
+  }
+
+  if (tipo_bono_id != "undefined") {
+    if ((label != "undefined" && values != "undefined") || (etapa_id != "undefined")) {
+      sqlQuery += ` and tipo_bono_id = ${tipo_bono_id}`
+    } else {
+      sqlQuery += ` WHERE tipo_bono_id = ${tipo_bono_id}`
+    }
+    
+  }
+
+  if (isDisabled != "undefined") {
+    if ((label != "undefined" && values != "undefined") || (etapa_id != "undefined") || (tipo_bono_id != "undefined")) {
+      sqlQuery += ` and activated = ${isDisabled}`
+    } else{
+      sqlQuery += ` WHERE activated = ${isDisabled}`
+    }
+
+    
+  }
+
+  sqlQuery += ` order by fecha_ingreso ${order}`
+  console.log(sqlQuery)
+
+  con.query(sqlQuery, (err, results) => {
+    if (err) {
+      console.log(err)
+      return res.json(err);
+    }
+
+    console.log(results)
+    return res.status(200).json(results);
+  });
+
 
 
 });
@@ -146,13 +176,17 @@ app.get('/getUsers', (req, res) => {
 
 app.post('/login', (req, res) => {
     const {user, psw} = req.body
+    console.log(req.body)
 
     con.query('call getUserWithRole(?)', [user] ,(err, results) => {
         try{
             if (err) {
+              console.log(err)
                 return res.status(400).json(err)
             }
 
+
+            console.log(results)
 
 
             if(results.length == 0){
@@ -1049,6 +1083,57 @@ app.post('/pushPrueba', (req, res) => {
           return res.json(err)
       }
 
+      return res.status(200).json(results)
+  })
+})
+
+app.get('/getNotisLeidas', (req, res) => {
+  const query = req.query;
+  const user_id = query.user_id
+
+  con.query('select * from notificaciones where usuario_id = ? and leido = 0', [user_id], (err, results) => {
+      if (err) {
+          return res.json(err)
+      }
+      return res.status(200).json(results)
+  })
+})
+
+
+app.get('/getAllNotis', (req, res) => {
+  const query = req.query;
+  const user_id = query.user_id
+
+  con.query('select * from notificaciones where usuario_id = ?', [user_id], (err, results) => {
+      if (err) {
+          return res.json(err)
+      }
+      return res.status(200).json(results)
+  })
+})
+
+app.post('/setReaded', (req, res) => {
+  const body = req.body;
+  const id = body.id;
+
+  con.query('update notificaciones set leido = 1 where id= ? ', [id], (err, results) => {
+      if (err) {
+          return res.json(err)
+      }
+      return res.status(200).json(results)
+  })
+})
+
+app.post('/insertNoti', (req, res) => {
+  const body = req.body;
+  const user_id = body.user_id;
+  const message = body.message;
+
+
+  con.query('Insert into notificaciones(message, usuario_id) values (?, ?)', [message, user_id], (err, results) => {
+      if (err) {
+          return res.json(err)
+      }
       return res.status(200).json(results)
   })
 })
