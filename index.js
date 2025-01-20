@@ -33,7 +33,7 @@ con.connect(function (err) {
     console.log("Connected!");
 });
 
-
+const hola = "hola"
 app.get('/test/:query', (req, res) => {
     const {query} = req.params
     con.query('Call findAll(?)', [query] ,(err, results) => {
@@ -211,6 +211,7 @@ app.post('/login', (req, res) => {
                 return res.status(400).json({msj: "Bad user or password"})
             }
         } catch (error){
+          console.log(error)
             return res.status(400).json(error)
         }
     })
