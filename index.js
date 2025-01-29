@@ -33,16 +33,6 @@ con.connect(function (err) {
     console.log("Connected!");
 });
 
-const hola = "hola"
-app.get('/test/:query', (req, res) => {
-    const {query} = req.params
-    con.query('Call findAll(?)', [query] ,(err, results) => {
-        if (err) {
-            return res.json(err)
-        }
-        return res.status(200).json(results[0])
-    })
-})
 
 app.get('/filter', (req, res) => {
   const { table, rol_id, nombre } = req.query;
@@ -79,7 +69,6 @@ app.get('/filter', (req, res) => {
         if (err) {
           return res.json(err);
         }
-        console.log(results);
         return res.status(200).json(results);
       });
     }
@@ -90,16 +79,14 @@ app.get('/projectNames', (req, res) => {
 
 
   const query = req.query;
-  console.log(query)
   const values = query.value.split(',');
   const order = query.order
   const isDisabled = query.isDisabled
   const label = query.label.split(',')
-  const etapa_id = query.etapa_id
-  const tipo_bono_id = query.tipo_bono_id
+  const etapa_id = query.etapa_id.split(',')
+  const tipo_bono_id = query.tipo_bono_id.split(',')
 
   let sqlQuery = "SELECT nombre, id, estado_color FROM proyectos  "
-  console.log(label != "undefined")
 
   if ((label != "undefined") && (values != "undefined")) {
     sqlQuery += `WHERE ${label} in (${values})`
@@ -107,18 +94,18 @@ app.get('/projectNames', (req, res) => {
 
   if (etapa_id != "undefined") {
     if ((label != "undefined") && (values != "undefined")) {
-      sqlQuery += ` and etapa_actual_id = ${etapa_id}`
+      sqlQuery += ` and etapa_actual_id in (${etapa_id})`
     } else{
-      sqlQuery += ` WHERE etapa_actual_id = ${etapa_id}`
+      sqlQuery += ` WHERE etapa_actual_id in (${etapa_id})`
     }
     
   }
 
   if (tipo_bono_id != "undefined") {
     if ((label != "undefined" && values != "undefined") || (etapa_id != "undefined")) {
-      sqlQuery += ` and tipo_bono_id = ${tipo_bono_id}`
+      sqlQuery += ` and tipo_bono_id in (${tipo_bono_id})`
     } else {
-      sqlQuery += ` WHERE tipo_bono_id = ${tipo_bono_id}`
+      sqlQuery += ` WHERE tipo_bono_id in (${tipo_bono_id})`
     }
     
   }
@@ -134,7 +121,6 @@ app.get('/projectNames', (req, res) => {
   }
 
   sqlQuery += ` order by fecha_ingreso ${order}`
-  console.log(sqlQuery)
 
   con.query(sqlQuery, (err, results) => {
     if (err) {
@@ -142,7 +128,6 @@ app.get('/projectNames', (req, res) => {
       return res.json(err);
     }
 
-    console.log(results)
     return res.status(200).json(results);
   });
 
@@ -152,7 +137,7 @@ app.get('/projectNames', (req, res) => {
 
 app.get('/getData/:name', (req, res) => {
     const {name} = req.params
-    con.query('Call prueba(?)', [name] ,(err, results) => {
+    con.query('Call getCardInfo(?)', [name] ,(err, results) => {
         if (err) {
             return res.json(err)
         }
@@ -176,7 +161,6 @@ app.get('/getUsers', (req, res) => {
 
 app.post('/login', (req, res) => {
     const {user, psw} = req.body
-    console.log(req.body)
 
     con.query('call getUserWithRole(?)', [user] ,(err, results) => {
         try{
@@ -186,7 +170,6 @@ app.post('/login', (req, res) => {
             }
 
 
-            console.log(results)
 
 
             if(results.length == 0){
@@ -197,14 +180,11 @@ app.post('/login', (req, res) => {
               return res.status(400).json({msj: "not users found", activated:false})
             }
 
-            console.log(results[0][0])
 
             if (results[0][0].password == psw) {
                 if (results[0][0].estado == 0) {
-                  console.log("Usuario nuevo")
                     return res.status(200).json({msj: "Usuario autorizado", authorized: true, newUser: true, rol: results[0][0].role_name})
                 } else{
-                    console.log("Usuario viejo")
                     return res.status(200).json({msj: "Usuario autorizado", authorized: true, id: results[0][0].id , newUser: false, rol: results[0][0].role_name, user: results[0][0].user_name}, )
                 }
             } else{
@@ -277,11 +257,12 @@ function organizeAdminData(data) {
     const organizedData = {
       Analista_de_Entidades: [],
       Fiscal: [],
-      Promotor_de_Entidades: [],
+      Promotor_Ipsum: [],
       Analista_Ipsum: [], // Add the new type here
       Ingeniero: [],
       Entidad: [],
-      Promotor_Ipsum: []
+      Arquitecto: [],
+      Constructor: [],
     };
   
     // First pass: organize by type and collect entities
@@ -317,7 +298,6 @@ function organizeAdminData(data) {
   }
 
 function organizeBonos(data){
-  console.log(data)
     const result = Object.values(
         data.reduce((acc, { TipoBonoID, TipoBonoNombre, VarianteID, VarianteNombre, ActivatedBono, ActivatedVariante }) => {
           // Si el TipoBonoID no existe aún en el acumulador, lo inicializamos
@@ -412,7 +392,7 @@ app.post('/saveData/', (req, res) => {
                 const headOfFamily = familyMembers.find(member => member.tipoMiembro == 'Jefe/a de Familia');
                 const projectName = `${headOfFamily.nombre} ${headOfFamily.primerApellido} ${headOfFamily.segundoApellido}`;
   
-                con.query('INSERT INTO proyectos (nombre, descripcion, grupo_proyecto_id, tipo_bono_id, variante_bono_id, lote_id, fecha_ingreso, presupuesto, avaluo, entidad_id, centro_negocio_id, analista_asigna_entidad_id, analista_asigna_ipsum_id, fiscal_id, ingeniero_id, promotor_externo_id, promotor_interno_id, codigo_apc, codigo_cfia, fis) VALUES (?, ?, ?, ?, ?, ?, CURDATE(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                con.query('INSERT INTO proyectos (nombre, descripcion, grupo_proyecto_id, tipo_bono_id, variante_bono_id, lote_id, fecha_ingreso, presupuesto, avaluo, entidad_id, centro_negocio_id, analista_asigna_entidad_id, analista_asigna_ipsum_id, fiscal_id, ingeniero_id, arquitecto_id, promotor_interno_id, codigo_apc, codigo_cfia, fis) VALUES (?, ?, ?, ?, ?, ?, CURDATE(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                   [projectName, 
                    projectData.desc, 
                    projectData.grupoSeleccionado, 
@@ -427,7 +407,7 @@ app.post('/saveData/', (req, res) => {
                    formDataAdmin.analistaIPSUM, 
                    formDataAdmin.fiscalAsignado == "pendiente" ? null : formDataAdmin.fiscalAsignado, 
                    formDataAdmin.ingenieroAsignado, 
-                   formDataAdmin.promotorEntidad == "pendiente" ? null : formDataAdmin.promotorEntidad, 
+                   formDataAdmin.arquitecto == "pendiente" ? null : formDataAdmin.arquitecto, 
                    formDataAdmin.Promotor_Ipsum, 
                    formDataAdmin.apc, 
                    formDataAdmin.cfia, 
@@ -509,7 +489,7 @@ app.post('/saveData/', (req, res) => {
 });
   
 app.post('/updateUser', (req, res) => {
-  const {id, lastName1, lastName2, userName, roles} = req.body
+  const {id, lastName1, lastName2, userName, roles, email} = req.body
 
   var roleId;
 
@@ -534,14 +514,22 @@ app.post('/updateUser', (req, res) => {
       roleId = 5;
       break;
 
+    case "Arquitecto":
+      roleId = 6;
+      break;
+
     default:
       break;
   }
 
-  con.query('UPDATE usuarios SET nombre = ?, apellido1 = ?, apellido2 = ?, rol_id = ? WHERE id = ?', [userName, lastName1, lastName2, roleId, id] ,(err, results) => {
+
+
+  con.query('UPDATE usuarios SET nombre = ?, apellido1 = ?, apellido2 = ?, rol_id = ?, correo_electronico = ? WHERE id = ?', [userName, lastName1, lastName2, roleId,email, id ] ,(err, results) => {
     try{
         if (err) {
+            console.log(err)
             return res.status(400).json(err)
+            
         }
         return res.status(200).json(results[0])
     } catch (error){
@@ -574,6 +562,10 @@ app.post('/addUser', (req, res) => {
 
     case "Ingeniero":
       roleId = 5;
+      break;
+
+    case "Arquitecto":
+      roleId = 6;
       break;
 
     default:
@@ -649,7 +641,6 @@ app.get('/getBonosSimple', (req, res) => {
 
 app.post('/updateData/', (req, res) => {
   const { projectData, familyMembers, directionData, formDataAdmin, deletedMembers } = req.body;
-  console.log("ProjectData", projectData)
 
   // Validate that there's at least one family member who is the head of the household
   const hasHeadOfHousehold = familyMembers.some(member => member.tipoMiembro == 'Jefe/a de Familia' || member.tipoMiembro == 'jefe/a de familia');
@@ -715,7 +706,7 @@ app.post('/updateData/', (req, res) => {
               const headOfFamily = familyMembers.find(member => member.tipoMiembro == 'Jefe/a de Familia' || member.tipoMiembro == 'jefe/a de familia');
               const projectName = `${headOfFamily.nombre} ${headOfFamily.primerApellido} ${headOfFamily.segundoApellido}`;
 
-              con.query('Update proyectos set nombre = ?, descripcion = ?, grupo_proyecto_id = ?, tipo_bono_id = ?, variante_bono_id = ?, fecha_ingreso = CURDATE(), presupuesto = ?, avaluo = ?, entidad_id = ?, centro_negocio_id = ?, analista_asigna_entidad_id = ?, analista_asigna_ipsum_id = ?, fiscal_id = ?, ingeniero_id = ?, promotor_externo_id = ?, promotor_interno_id = ?, codigo_apc = ?, codigo_cfia = ?, fis = ? where id = ?',
+              con.query('Update proyectos set nombre = ?, descripcion = ?, grupo_proyecto_id = ?, tipo_bono_id = ?, variante_bono_id = ?, fecha_ingreso = CURDATE(), presupuesto = ?, avaluo = ?, entidad_id = ?, centro_negocio_id = ?, analista_asigna_entidad_id = ?, analista_asigna_ipsum_id = ?, fiscal_id = ?, ingeniero_id = ?, arquitecto_id = ?, promotor_interno_id = ?, codigo_apc = ?, codigo_cfia = ?, fis = ? where id = ?',
                 [projectName, 
                   projectData.desc, 
                   projectData.grupoSeleccionado, 
@@ -729,7 +720,7 @@ app.post('/updateData/', (req, res) => {
                   formDataAdmin.analistaIPSUM, 
                   formDataAdmin.fiscalAsignado == "pendiente" ? null : formDataAdmin.fiscalAsignado, 
                   formDataAdmin.ingenieroAsignado, 
-                  formDataAdmin.promotorEntidad == "pendiente" ? null : formDataAdmin.promotorEntidad, 
+                  formDataAdmin.arquitecto == "pendiente" ? null : formDataAdmin.arquitecto, 
                   formDataAdmin.Promotor_Ipsum, 
                   formDataAdmin.apc, 
                   formDataAdmin.cfia, 
@@ -851,18 +842,14 @@ app.get('/getEtapas', (req, res) => {
 
 app.post('/updateEtapa', (req, res) => {
   const {id, etapa, subetapa} = req.body
-
-  console.log(req.body)
   
   const subetapaFixed = subetapa == 0 ? null : subetapa
 
-  console.log(subetapaFixed)
   con.query('update proyectos set etapa_actual_id = ?, subetapa_actual_id = ? where id = ?', [etapa, subetapaFixed, id], (err, results) => {
       if (err) {
         console.log(err)
           return res.json(err)
       }
-      console.log(results)
       return res.status(200).json(results)
   })
 })
@@ -884,7 +871,6 @@ app.post('/insertBitacora', (req, res) => {
           console.log(err)
             return res.json(err)
         }
-        console.log(results)
         return res.status(200).json(results)
       })
   })
@@ -909,7 +895,6 @@ app.post('/insertData', (req, res) => {
         console.log(err)
           return res.json(err)
       }
-      console.log(results)
       return res.status(200).json(results)
   })
 })
@@ -940,14 +925,12 @@ app.post('/genericUpdate', (req, res) => {
 
   for (i = 0; i < claves.length; i++) {
     if (claves[i] !== "id") {
-      console.log("Entro al if porque no es id" )
       con.query('Update ?? set ?? = ? where id = ?', [table ,claves[i], valores[i], dataEdit.id ], (err, results) => {
         if (err) {
           console.log(err)
             return res.json(err)
         }
 
-        console.log(results)
 
       })
     }
@@ -1005,14 +988,34 @@ app.post('/deleteProyecto', (req, res) => {
 
 app.get('/getEmails', (req, res) => {
   const query = req.query;
-  const id_analista = query.id_analista
-  const id_ingeniero = query.id_ingeniero
+  const emails = query.emails.split(",")
+  const idProyecto = query.id_proyecto
 
-  con.query('select correo_electronico from usuarios where id in (?)',[[id_analista, id_ingeniero]], (err, results) => {
+
+  con.query('select ?? from proyectos where id in (?)',[emails, idProyecto], (err, results) => {
       if (err) {
+          console.log(err)
           return res.json(err)
       }
-      return res.status(200).json(results)
+      let ids = []
+
+      for (const [clave, valor] of Object.entries(results[0])) {
+          ids.push(valor);
+
+      }
+
+      ids.push(1)
+      console.log(ids)
+      
+      con.query('select correo_electronico from usuarios where id in (?)',[ids], (err, results) => {
+        if (err) {
+            console.log(err)
+            return res.json(err)
+        }
+        
+        return res.status(200).json({emails: results, ids})
+      })
+      
   })
 })
 
@@ -1027,11 +1030,9 @@ app.post('/forgetPassword', (req, res) => {
       }
 
       if (results.length == 0) {
-        console.log("no hay correo")
         res.status(200).json({noUser: true, results: results})
         
       } else {
-        console.log("Si hubo correo")
 
         const newPassword = generatePassword.generate({
           length: 10,
@@ -1073,10 +1074,8 @@ app.post('/forgetPassword', (req, res) => {
 })
 
 app.post('/pushPrueba', (req, res) => {
-  console.log("llego aca")
   const body = req.body;
   const token = body.token
-  console.log(req.body)
 
   con.query('insert into tokenTest (token) values (?)',[token], (err, results) => {
       if (err) {
