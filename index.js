@@ -562,8 +562,16 @@ app.post('/updateUser', (req, res) => {
       roleId = 6;
       break;
 
-    default:
+    case "Ingeniero Admin":
+      roleId = 9
       break;
+
+    case "Analista Admin":
+      roleId = 7
+      break;
+    
+    case "Arquitecto Admin":
+      roleId = 10;
   }
 
 
@@ -611,9 +619,18 @@ app.post('/addUser', (req, res) => {
     case "Arquitecto":
       roleId = 6;
       break;
-
-    default:
+    
+    case "Ingeniero Admin":
+      roleId = 9
       break;
+
+    case "Analista Admin":
+      roleId = 7
+      break;
+    
+    case "Arquitecto Admin":
+      roleId = 10;
+
   }
 
   con.query('INSERT INTO usuarios (nombre, apellido1, apellido2, correo_electronico, rol_id) VALUES (?, ? ,?, ?, ?)', [userName, lastName1, lastName2, email, roleId] ,(err, results) => {
