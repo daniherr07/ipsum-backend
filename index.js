@@ -1171,6 +1171,30 @@ app.post('/setReaded', (req, res) => {
   })
 })
 
+app.post('/setAllReaded', (req, res) => {
+  const body = req.body;
+  const id = body.id;
+
+  con.query('update notificaciones set leido = 1 where usuario_id= ? ', [id], (err, results) => {
+      if (err) {
+          return res.json(err)
+      }
+      return res.status(200).json(results)
+  })
+})
+
+app.post('/deleteReaded', (req, res) => {
+  const body = req.body;
+  const id = body.id;
+
+  con.query('delete from notificaciones where usuario_id= ? and leido = 1 ', [id], (err, results) => {
+      if (err) {
+          return res.json(err)
+      }
+      return res.status(200).json(results)
+  })
+})
+
 app.post('/insertNoti', (req, res) => {
   const body = req.body;
   const user_id = body.user_id;
