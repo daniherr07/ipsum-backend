@@ -347,6 +347,8 @@ function organizeBonos(data){
 
 app.post('/saveData/', async (req, res) => {
     const { projectData, familyMembers, directionData, formDataAdmin } = req.body;
+
+    console.log(formDataAdmin)
     async function sleep(ms) {
       return new Promise(resolve => setTimeout(resolve, ms));
     }
@@ -364,171 +366,176 @@ app.post('/saveData/', async (req, res) => {
       return res.status(400).json({ message: 'variante_bono_id is required' });
     }
   
-    // First, let's check if the variante_bono_id exists 
-    async function crearProyecto() {
-      con.query('SELECT id FROM variantes_bono WHERE id = ?', [newSubtipoSeleccionado], (err, results) => {
-        if (err) {
-          console.error('Database error:', err);
-          return res.status(500).json({ message: 'Error checking variante_bono_id', error: err.message });
-        }
-        
-        if (results.length === 0) {
-          console.log("Error2")
-          return res.status(400).json({ message: 'Invalid variante_bono_id. Please select a valid option.' });
-        }
-  
-  
-        try {
-          
-        
-    
-        // If we reach here, the variante_bono_id is valid, so we can proceed with the insertion
-        con.beginTransaction(err => {
+    try {
+      async function crearProyecto() {
+        con.query('SELECT id FROM variantes_bono WHERE id = ?', [newSubtipoSeleccionado], (err, results) => {
           if (err) {
-            console.error('Transaction error:', err);
-            return res.status(500).json({ message: 'Error al iniciar la transacción', error: err.message });
+            console.error('Database error:', err);
+            return res.status(500).json({ message: 'Error checking variante_bono_id', error: err.message });
+          }
+          
+          if (results.length === 0) {
+            console.log("Error2")
+            return res.status(400).json({ message: 'Invalid variante_bono_id. Please select a valid option.' });
           }
     
-          // Insert propietario
-          con.query('INSERT INTO propietarios (tipo_propietario_id, cedula) VALUES (?, ?)', 
-            [directionData.loteTipoIdentificacion == "pendiente" ? null : directionData.loteTipoIdentificacion, 
-              directionData.loteIdentificacion == "pendiente" ? null : directionData.loteIdentificacion], 
-            (err, propietarioResult) => {
-              if (err) {
-                return con.rollback(() => {
-                  console.error('Propietario insertion error:', err);
-                  res.status(500).json({ message: 'Error al insertar propietario', error: err.message });
-                });
-              }
     
-              const propietarioId = propietarioResult.insertId;
-    
-              // Insert lote
-              con.query('INSERT INTO lotes (propietario_id, numero_plano_catastro, numero_finca, provincia, distrito, canton, senas_descripcion) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                [propietarioId, directionData.numeroPlanoCatastro, directionData.finca, directionData.provincia, directionData.distrito, directionData.canton, directionData.otrasSenas],
-                (err, loteResult) => {
-                  if (err) {
-                    return con.rollback(() => {
-                      console.error('Lote insertion error:', err);
-                      res.status(500).json({ message: 'Error al insertar lote', error: err.message });
-                    });
-                  }
-    
-                  const loteId = loteResult.insertId;
-    
-                  // Insert proyecto
-                  const headOfFamily = familyMembers.find(member => member.tipoMiembro == 'Jefe/a de Familia');
-                  const projectName = `${headOfFamily.nombre} ${headOfFamily.primerApellido} ${headOfFamily.segundoApellido}`;
-    
-                  con.query('INSERT INTO proyectos (nombre, descripcion, grupo_proyecto_id, tipo_bono_id, variante_bono_id, lote_id, fecha_ingreso, presupuesto, avaluo, entidad_id, centro_negocio_id, analista_asigna_entidad_id, analista_asigna_ipsum_id, fiscal_id, ingeniero_id, arquitecto_id, promotor_interno_id, codigo_apc, codigo_cfia, fis, constructor_id) VALUES (?, ?, ?, ?, ?, ?, CURDATE(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                    [projectName, 
-                     projectData.desc, 
-                     projectData.grupoSeleccionado, 
-                     projectData.bonoSeleccionado, 
-                     newSubtipoSeleccionado, 
-                     loteId, 
-                     formDataAdmin.presupuesto == "" ? null : formDataAdmin.presupuesto, 
-                     formDataAdmin.avaluo == "" ? null : formDataAdmin.avaluo, 
-                     formDataAdmin.entidad, 
-                     formDataAdmin.entidadSecundaria == "pendiente" ? null : formDataAdmin.entidadSecundaria, 
-                     formDataAdmin.analistaEntidad == "pendiente" ? null : formDataAdmin.analistaEntidad, 
-                     formDataAdmin.analistaIPSUM, 
-                     formDataAdmin.fiscalAsignado == "pendiente" ? null : formDataAdmin.fiscalAsignado, 
-                     formDataAdmin.ingenieroAsignado == "pendiente" ? null : formDataAdmin.ingenieroAsignado, 
-                     formDataAdmin.arquitecto == "pendiente" ? null : formDataAdmin.arquitecto, 
-                     formDataAdmin.Promotor_Ipsum == "pendiente" ? null : formDataAdmin.Promotor_Ipsum, 
-                     formDataAdmin.apc, 
-                     formDataAdmin.cfia, 
-                     projectData.hasFIS,
-                     formDataAdmin.constructor == "pendiente" ? null : formDataAdmin.constructor,],
-                    (err, proyectoResult) => {
-                      if (err) {
-                        return con.rollback(() => {
-                          console.error('Proyecto insertion error:', err);
-                          res.status(500).json({ message: 'Error al insertar proyecto', error: err.message });
-                        });
-                      }
-    
-                      const proyectoId = proyectoResult.insertId;
-  
-    
-                      // Insert family members
-                      const familyValues = familyMembers.map(member => [
-                        proyectoId, 
-                        member.tipoMiembro || null, 
-                        member.nombre || null, 
-                        member.primerApellido || null, 
-                        member.segundoApellido || null,
-                        member.identificacion || null, 
-                        member.tipoIdentificacion || null, 
-                        member.ingresos || null, 
-                        member.tipoIngresos || null,
-                        member.telefono || null, 
-                        member.tipoTelefono || null, 
-                        member.email || null, 
-                        member.adultoMayor || false, 
-                        member.discapacidad || false,
-                        member.cedulaFile || null
-                      ]);
-    
-                      con.query('INSERT INTO familias (proyecto_id, tipo_miembro, nombre, apellido1, apellido2, cedula, tipo_cedula, ingreso, tipo_ingreso, telefono, tipo_telefono, email, adulto_mayor, discapacidad, imagen_cedula) VALUES ?',
-                        [familyValues],
-                        (err) => {
-                          if (err) {
-                            return con.rollback(() => {
-                              console.error('Family members insertion error:', err);
-                              res.status(500).json({ message: 'Error al insertar miembros de la familia', error: err.message });
-                            });
-                          }
-                        
-                          
-                        
-                        }
-                      
-                          
-                        
-                      );
-                      con.commit((err) => {
-                        if (err) {
-                          return con.rollback(() => {
-                            console.error('Commit error:', err);
-                            res.status(500).json({ message: 'Error al finalizar la transacción', error: err.message });
-                          });
-                        }
-
-                        
+          try {
+            
+          
+      
+          // If we reach here, the variante_bono_id is valid, so we can proceed with the insertion
+          con.beginTransaction(err => {
+            if (err) {
+              console.error('Transaction error:', err);
+              return res.status(500).json({ message: 'Error al iniciar la transacción', error: err.message });
+            }
+      
+            // Insert propietario
+            con.query('INSERT INTO propietarios (tipo_propietario_id, cedula) VALUES (?, ?)', 
+              [directionData.loteTipoIdentificacion == "pendiente" ? null : directionData.loteTipoIdentificacion, 
+                directionData.loteIdentificacion == "pendiente" ? null : directionData.loteIdentificacion], 
+              (err, propietarioResult) => {
+                if (err) {
+                  return con.rollback(() => {
+                    console.error('Propietario insertion error:', err);
+                    res.status(500).json({ message: 'Error al insertar propietario', error: err.message });
+                  });
+                }
+      
+                const propietarioId = propietarioResult.insertId;
+      
+                // Insert lote
+                con.query('INSERT INTO lotes (propietario_id, numero_plano_catastro, numero_finca, provincia, distrito, canton, senas_descripcion) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                  [propietarioId, directionData.numeroPlanoCatastro, directionData.finca, directionData.provincia, directionData.distrito, directionData.canton, directionData.otrasSenas],
+                  (err, loteResult) => {
+                    if (err) {
+                      return con.rollback(() => {
+                        console.error('Lote insertion error:', err);
+                        res.status(500).json({ message: 'Error al insertar lote', error: err.message });
                       });
                     }
-                  );
-                }
-              );
-            }
-          );
-        
-  
-        
-        });
-  
-  
-  
-        } catch (err) {
-            console.log(err)
-        }
-      });
       
+                    const loteId = loteResult.insertId;
+      
+                    // Insert proyecto
+                    const headOfFamily = familyMembers.find(member => member.tipoMiembro == 'Jefe/a de Familia');
+                    const projectName = `${headOfFamily.nombre} ${headOfFamily.primerApellido} ${headOfFamily.segundoApellido}`;
+      
+                    con.query('INSERT INTO proyectos (nombre, descripcion, grupo_proyecto_id, tipo_bono_id, variante_bono_id, lote_id, fecha_ingreso, presupuesto, avaluo, entidad_id, centro_negocio_id, analista_asigna_entidad_id, analista_asigna_ipsum_id, fiscal_id, ingeniero_id, arquitecto_id, promotor_interno_id, codigo_apc, codigo_cfia, fis, constructor_id) VALUES (?, ?, ?, ?, ?, ?, CURDATE(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                      [projectName, 
+                       projectData.desc, 
+                       projectData.grupoSeleccionado, 
+                       projectData.bonoSeleccionado, 
+                       newSubtipoSeleccionado, 
+                       loteId, 
+                       formDataAdmin.presupuesto == "" ? null : formDataAdmin.presupuesto, 
+                       formDataAdmin.avaluo == "" ? null : formDataAdmin.avaluo, 
+                       formDataAdmin.entidad, 
+                       formDataAdmin.entidadSecundaria == "pendiente" ? null : formDataAdmin.entidadSecundaria, 
+                       formDataAdmin.analistaEntidad == "pendiente" ? null : formDataAdmin.analistaEntidad, 
+                       formDataAdmin.analistaIPSUM, 
+                       formDataAdmin.fiscalAsignado == "pendiente" ? null : formDataAdmin.fiscalAsignado, 
+                       formDataAdmin.ingenieroAsignado == "pendiente" ? null : formDataAdmin.ingenieroAsignado, 
+                       formDataAdmin.arquitecto == "pendiente" ? null : formDataAdmin.arquitecto, 
+                       formDataAdmin.Promotor_Ipsum == "pendiente" ? null : formDataAdmin.Promotor_Ipsum, 
+                       formDataAdmin.apc, 
+                       formDataAdmin.cfia, 
+                       projectData.hasFIS,
+                       formDataAdmin.constructor == "pendiente" ? null : formDataAdmin.constructor,],
+                      (err, proyectoResult) => {
+                        if (err) {
+                          return con.rollback(() => {
+                            console.error('Proyecto insertion error:', err);
+                            res.status(500).json({ message: 'Error al insertar proyecto', error: err.message });
+                          });
+                        }
+      
+                        const proyectoId = proyectoResult.insertId;
+    
+      
+                        // Insert family members
+                        const familyValues = familyMembers.map(member => [
+                          proyectoId, 
+                          member.tipoMiembro || null, 
+                          member.nombre || null, 
+                          member.primerApellido || null, 
+                          member.segundoApellido || null,
+                          member.identificacion || null, 
+                          member.tipoIdentificacion || null, 
+                          member.ingresos || null, 
+                          member.tipoIngresos || null,
+                          member.telefono || null, 
+                          member.tipoTelefono || null, 
+                          member.email || null, 
+                          member.adultoMayor || false, 
+                          member.discapacidad || false,
+                          member.cedulaFile || null
+                        ]);
+      
+                        con.query('INSERT INTO familias (proyecto_id, tipo_miembro, nombre, apellido1, apellido2, cedula, tipo_cedula, ingreso, tipo_ingreso, telefono, tipo_telefono, email, adulto_mayor, discapacidad, imagen_cedula) VALUES ?',
+                          [familyValues],
+                          (err) => {
+                            if (err) {
+                              return con.rollback(() => {
+                                console.error('Family members insertion error:', err);
+                                res.status(500).json({ message: 'Error al insertar miembros de la familia', error: err.message });
+                              });
+                            }
+                          
+                            
+                          
+                          }
+                        
+                            
+                          
+                        );
+                        con.commit((err) => {
+                          if (err) {
+                            return con.rollback(() => {
+                              console.error('Commit error:', err);
+                              res.status(500).json({ message: 'Error al finalizar la transacción', error: err.message });
+                            });
+                          }
+  
+                          
+                        });
+                      }
+                    );
+                  }
+                );
+              }
+            );
+          
+    
+          
+          });
+    
+    
+    
+          } catch (err) {
+              console.log(err)
+          }
+        });
+        
+      }
+  
+      await crearProyecto()
+  
+      await sleep(3000)
+  
+        con.query('select * from proyectos order by id desc', (err, results) => {
+          if (err) {
+            console.log(err)
+              return res.json(err)
+          }
+          return res.status(200).json({ message: 'Proyecto guardado exitosamente', ok: true, results: results[0] });
+        })
+    } catch (error) {
+      return res.status(200).json({ message: 'Error al guardar el proyecto', ok: false});
     }
+    // First, let's check if the variante_bono_id exists 
 
-    await crearProyecto()
-
-    await sleep(3000)
-
-      con.query('select * from proyectos order by id desc', (err, results) => {
-        if (err) {
-          console.log(err)
-            return res.json(err)
-        }
-        return res.status(200).json({ message: 'Proyecto guardado exitosamente', ok: true, results: results[0] });
-      })
     
 });
   
