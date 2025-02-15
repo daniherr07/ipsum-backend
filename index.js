@@ -1162,7 +1162,7 @@ app.get('/getNotisLeidas', (req, res) => {
   const query = req.query;
   const user_id = query.user_id
 
-  con.query('select * from notificaciones where usuario_id = ? and leido = 0 order by fecha_ingreso asc', [user_id], (err, results) => {
+  con.query('select * from notificaciones where usuario_id = ? and leido = 0 order by fecha_ingreso desc', [user_id], (err, results) => {
       if (err) {
           return res.json(err)
       }
@@ -1175,7 +1175,7 @@ app.get('/getAllNotis', (req, res) => {
   const query = req.query;
   const user_id = query.user_id
 
-  con.query('select * from notificaciones where usuario_id = ? order by fecha_ingreso asc', [user_id], (err, results) => {
+  con.query('select * from notificaciones where usuario_id = ? order by fecha_ingreso desc', [user_id], (err, results) => {
       if (err) {
         console.log(err)
           return res.json(err)
