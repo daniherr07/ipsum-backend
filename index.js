@@ -1162,7 +1162,7 @@ app.get('/getNotisLeidas', (req, res) => {
   const query = req.query;
   const user_id = query.user_id
 
-  con.query('select * from notificaciones where usuario_id = ? and leido = 0', [user_id], (err, results) => {
+  con.query('select * from notificaciones where usuario_id = ? and leido = 0 order by fecha_ingreso asc', [user_id], (err, results) => {
       if (err) {
           return res.json(err)
       }
@@ -1175,10 +1175,12 @@ app.get('/getAllNotis', (req, res) => {
   const query = req.query;
   const user_id = query.user_id
 
-  con.query('select * from notificaciones where usuario_id = ?', [user_id], (err, results) => {
+  con.query('select * from notificaciones where usuario_id = ? order by fecha_ingreso asc', [user_id], (err, results) => {
       if (err) {
+        console.log(err)
           return res.json(err)
       }
+      console.log(results)
       return res.status(200).json(results)
   })
 })
@@ -1223,12 +1225,18 @@ app.post('/insertNoti', (req, res) => {
   const body = req.body;
   const user_id = body.user_id;
   const message = body.message;
+  const time = body.time
+  var newDate = new Date(time)
+  console.log("BBBBBBBBBBBBBBBBBB")
 
 
-  con.query('Insert into notificaciones(message, usuario_id) values (?, ?)', [message, user_id], (err, results) => {
+  con.query('Insert into notificaciones(message, usuario_id, fecha_ingreso) values (?, ?, ?)', [message, user_id, newDate], (err, results) => {
       if (err) {
+        console.error(err)
           return res.json(err)
       }
+      console.log("AAAAAAAAAAAAAAAAAAAAA")
+      console.log(results)
       return res.status(200).json(results)
   })
 })
