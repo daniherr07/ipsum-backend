@@ -5,7 +5,7 @@ const bodyParser = require('body-parser');
 const generatePassword = require('generate-password')
 const nodemailer = require("nodemailer");
 require('dotenv').config()
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 
 
 app.use(cors())
