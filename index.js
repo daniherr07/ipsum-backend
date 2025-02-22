@@ -5,11 +5,14 @@ const bodyParser = require('body-parser');
 const generatePassword = require('generate-password')
 const nodemailer = require("nodemailer");
 require('dotenv').config()
+const bcrypt = require('bcrypt');
 
 
 app.use(cors())
 app.use(bodyParser.json());
 app.use(express.json())
+
+const saltRounds = 10;
 
 
 var mysql = require("mysql2");
@@ -184,76 +187,86 @@ app.get('/getUsers', (req, res) => {
 })
 
 app.post('/login', (req, res) => {
-    const {user, psw} = req.body
+  const {user, psw} = req.body
 
-    con.query('call getUserWithRole(?)', [user] ,(err, results) => {
-        try{
-            if (err) {
+  con.query('call getUserWithRole(?)', [user] ,(err, results) => {
+      try{
+          if (err) {
               console.log(err)
-                return res.status(400).json(err)
-            }
+              return res.status(400).json(err)
+          }
 
+          if(results.length == 0){
+              return res.status(400).json({msj: "not users found"})
+          }
 
-
-
-            if(results.length == 0){
-                return res.status(400).json({msj: "not users found"})
-            }
-
-            if (results[0][0].activated == 0) {
+          if (results[0][0].activated == 0) {
               return res.status(400).json({msj: "not users found", activated:false})
-            }
+          }
 
-
-            if (results[0][0].password == psw) {
-                if (results[0][0].estado == 0) {
-                    return res.status(200).json({msj: "Usuario autorizado", authorized: true, newUser: true, rol: results[0][0].role_name})
-                } else{
-                    return res.status(200).json({msj: "Usuario autorizado", authorized: true, id: results[0][0].id , newUser: false, rol: results[0][0].role_name, user: results[0][0].user_name}, )
-                }
-            } else{
-                return res.status(400).json({msj: "Bad user or password"})
-            }
-        } catch (error){
+          // Compare the provided password with the stored hash
+          bcrypt.compare(psw, results[0][0].password, (err, isMatch) => {
+              if (err) {
+                console.log(err)
+                  return res.status(500).json({msj: "Error comparing passwords", error: true})
+              }
+              console.log(isMatch)
+              if (isMatch) {
+                
+                  if (results[0][0].estado == 0) {
+                      return res.status(200).json({msj: "Usuario autorizado", authorized: true, newUser: true, rol: results[0][0].role_name})
+                  } else{
+                      return res.status(200).json({msj: "Usuario autorizado", authorized: true, id: results[0][0].id , newUser: false, rol: results[0][0].role_name, user: results[0][0].user_name})
+                  }
+              } else {
+                  return res.status(400).json({msj: "Bad user or password"})
+              }
+          })
+      } catch (error){
           console.log(error)
-            return res.status(400).json(error)
-        }
-    })
+          return res.status(400).json(error)
+      }
+  })
 })
 
 app.post('/changePassword', (req, res) => {
-    const {user, email, psw, psw2} = req.body
-    
-    if (psw != psw2) {
-        res.status(400).json({msj: "Passwords don't match", pswError: true})
-        return
-    }
+  const {user, email, psw, psw2} = req.body
+  
+  if (psw != psw2) {
+      res.status(400).json({msj: "Passwords don't match", pswError: true})
+      return
+  }
 
-    con.query('Select * from usuarios where nombre = ?', [user] ,(err, results) => {
-            if (err) {
-                return res.status(400).json(err)
-            }
+  con.query('Select * from usuarios where nombre = ?', [user] ,(err, results) => {
+      if (err) {
+          return res.status(400).json(err)
+      }
 
-            if(results.length == 0){
-                return res.status(400).json({msj: "not users found", userError: true})
-                
-            }
+      if(results.length == 0){
+          return res.status(400).json({msj: "not users found", userError: true})
+      }
 
-            if (results[0].correo_electronico != email) {
-                return res.status(400).json({msj: "Emails doent match", emailError: true})
-            }
+      if (results[0].correo_electronico != email) {
+          return res.status(400).json({msj: "Emails doent match", emailError: true})
+      }
 
-            con.query('UPDATE usuarios SET estado = 1 WHERE nombre = ?', [user] ,(err, results) => {
-            })
-            
-            con.query('UPDATE usuarios SET password = ? WHERE nombre = ?', [psw, user] ,(err, results) => {
-                return res.status(200).json({msj: "Succesfuly Updated", correct: true})
-            })
-
-
-
-
-    })
+      con.query('UPDATE usuarios SET estado = 1 WHERE nombre = ?', [user] ,(err, results) => {
+      })
+      
+      // Hash the password before storing it
+      bcrypt.hash(psw, saltRounds, (err, hash) => {
+          if (err) {
+              return res.status(500).json({msj: "Error hashing password", error: true})
+          }
+          
+          con.query('UPDATE usuarios SET password = ? WHERE nombre = ?', [hash, user] ,(err, results) => {
+              if (err) {
+                  return res.status(500).json({msj: "Error updating password", error: true})
+              }
+              return res.status(200).json({msj: "Successfully Updated", correct: true})
+          })
+      })
+  })
 })
 
 app.get('/getBonos', (req, res) => {
