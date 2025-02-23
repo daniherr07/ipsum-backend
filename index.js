@@ -204,6 +204,23 @@ app.post('/login', (req, res) => {
               return res.status(400).json({msj: "not users found", activated:false})
           }
 
+
+          /*
+          Descomentar esto por si quiero añadir la contraseña de un usuario manual 
+          bcrypt.hash(psw, saltRounds, (err, hash) => {
+            if (err) {
+                return res.status(500).json({msj: "Error hashing password", error: true})
+            }
+            
+            con.query('UPDATE usuarios SET password = ? WHERE nombre = ?', [hash, user] ,(err, results) => {
+                if (err) {
+                    return res.status(500).json({msj: "Error updating password", error: true})
+                }
+                return res.status(200).json({msj: "Successfully Updated", correct: true})
+            })
+        }) */
+
+
           // Compare the provided password with the stored hash
           bcrypt.compare(psw, results[0][0].password, (err, isMatch) => {
               if (err) {
@@ -222,6 +239,7 @@ app.post('/login', (req, res) => {
                   return res.status(400).json({msj: "Bad user or password"})
               }
           })
+              
       } catch (error){
           console.log(error)
           return res.status(400).json(error)
@@ -653,7 +671,16 @@ app.post('/addUser', (req, res) => {
 
   }
 
-  con.query('INSERT INTO usuarios (nombre, apellido1, apellido2, correo_electronico, rol_id) VALUES (?, ? ,?, ?, ?)', [userName, lastName1, lastName2, email, roleId] ,(err, results) => {
+  let hashedPassword
+
+  bcrypt.hash(process.env.DEFAULT_PASS, saltRounds, (err, hash) => {
+    if (err) {
+        return res.status(500).json({msj: "Error hashing password", error: true})
+    }
+    hashedPassword = hash
+  })
+
+  con.query('INSERT INTO usuarios (nombre, apellido1, apellido2, correo_electronico, rol_id, password) VALUES (?, ? ,?, ?, ?, ?)', [userName, lastName1, lastName2, email, roleId, hashedPassword] ,(err, results) => {
     try{
         if (err) {
 
@@ -662,7 +689,7 @@ app.post('/addUser', (req, res) => {
               return res.status(400).json({msj: err.message})
               
             }
-            return res.status(400).json(err)
+            
             
         }
         return res.status(200).json(results[0])
@@ -672,6 +699,8 @@ app.post('/addUser', (req, res) => {
         
     }
   })
+
+
 })
 
 app.post('/changeStatus', (req, res) => {
