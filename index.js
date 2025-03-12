@@ -671,34 +671,35 @@ app.post('/addUser', (req, res) => {
 
   }
 
-  let hashedPassword
 
   bcrypt.hash(process.env.DEFAULT_PASS, saltRounds, (err, hash) => {
     if (err) {
         return res.status(500).json({msj: "Error hashing password", error: true})
     }
-    hashedPassword = hash
-  })
-
-  con.query('INSERT INTO usuarios (nombre, apellido1, apellido2, correo_electronico, rol_id, password) VALUES (?, ? ,?, ?, ?, ?)', [userName, lastName1, lastName2, email, roleId, hashedPassword] ,(err, results) => {
-    try{
-        if (err) {
-
-            if (err.code = "ERR_DUP_ENTRY") {
-              console.log(err)
-              return res.status(400).json({msj: err.message})
+    
+    
+    con.query('INSERT INTO usuarios (nombre, apellido1, apellido2, correo_electronico, rol_id, password) VALUES (?, ? ,?, ?, ?, ?)', [userName, lastName1, lastName2, email, roleId, hash] ,(err, results) => {
+      try{
+          if (err) {
+  
+              if (err.code = "ERR_DUP_ENTRY") {
+                console.log(err)
+                return res.status(400).json({msj: err.message})
+                
+              }
               
-            }
-            
-            
-        }
-        return res.status(200).json(results[0])
-    } catch (error){
-      console.log(error.code)
-        return res.status(400).json(error)
-        
-    }
+              
+          }
+          return res.status(200).json(results[0])
+      } catch (error){
+        console.log(error.code)
+          return res.status(400).json(error)
+          
+      }
+    })
   })
+
+
 
 
 })
@@ -1147,50 +1148,55 @@ app.post('/forgetPassword', (req, res) => {
         
       } else {
 
-        const newPassword = generatePassword.generate({
-          length: 10,
-          numbers: true
-        })
-
-        const transporter = nodemailer.createTransport({
-          service: 'gmail',
-          auth: {
-            user: process.env.EMAIL_USER, // Tu correo de Gmail
-            pass: process.env.EMAIL_PASS  // Tu contraseña de aplicación de Gmail
-          }
-        });
-
-        
-
-        const mailOptions = {
-          from: process.env.EMAIL_USER,
-          to: email, // Convertir array de destinatarios a string
-          subject: "Recuperacion de contraseña",
-          html: `<p>Su nueva contraseña temporal es ${newPassword}, por favor iniciar sesión y cambiar a una nueva contraseña</p>` // Puedes usar HTML en el contenido
-        };
-    
-        
-        // Enviar el correo
-        const info = await transporter.sendMail(mailOptions);
-
-        let hashedPassword
-
-        bcrypt.hash(newPassword, saltRounds, (err, hash) => {
-          if (err) {
-              return res.status(500).json({msj: "Error hashing password", error: true})
-          }
-          hashedPassword = hash
-        })
-
-        con.query('Update usuarios set password = ?, estado = 0 where correo_electronico = ?',[hashedPassword, email], (err, results) => {
-          if (err) {
-            console.log(err)
-              return res.json(err)
-          }
+        try {
+          const newPassword = generatePassword.generate({
+            length: 10,
+            numbers: true
+          })
+  
+          const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+              user: process.env.EMAIL_USER, // Tu correo de Gmail
+              pass: process.env.EMAIL_PASS  // Tu contraseña de aplicación de Gmail
+            }
+          });
+  
           
-    
-          return res.status(200).json(results)
-        })
+  
+          const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: email, // Convertir array de destinatarios a string
+            subject: "Recuperacion de contraseña",
+            html: `<p>Su nueva contraseña temporal es ${newPassword}, por favor iniciar sesión y cambiar a una nueva contraseña</p>` // Puedes usar HTML en el contenido
+          };
+      
+          
+          // Enviar el correo
+          const info = await transporter.sendMail(mailOptions);
+
+          bcrypt.hash(newPassword, saltRounds, (err, hash) => {
+            if (err) {
+              return res.status(500).json({ msj: "Error hashing password", error: true });
+            }
+
+            con.query('Update usuarios set password = ?, estado = 0 where correo_electronico = ?',[hash, email], (err, results) => {
+              if (err) {
+                console.log(err)
+                  return res.json(err)
+              }
+              
+        
+              return res.status(200).json(results)
+            })
+          })
+
+
+        } catch (error) {
+          console.log(error)
+        }
+
+        
       }
   })
 })
