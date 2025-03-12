@@ -1173,7 +1173,16 @@ app.post('/forgetPassword', (req, res) => {
         // Enviar el correo
         const info = await transporter.sendMail(mailOptions);
 
-        con.query('Update usuarios set password = ?, estado = 0 where correo_electronico = ?',[newPassword, email], (err, results) => {
+        let hashedPassword
+
+        bcrypt.hash(newPassword, saltRounds, (err, hash) => {
+          if (err) {
+              return res.status(500).json({msj: "Error hashing password", error: true})
+          }
+          hashedPassword = hash
+        })
+
+        con.query('Update usuarios set password = ?, estado = 0 where correo_electronico = ?',[hashedPassword, email], (err, results) => {
           if (err) {
             console.log(err)
               return res.json(err)
