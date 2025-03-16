@@ -7,35 +7,34 @@ const nodemailer = require("nodemailer");
 require('dotenv').config()
 const bcrypt = require('bcryptjs');
 
-
 app.use(cors())
 app.use(bodyParser.json());
 app.use(express.json())
 
 const saltRounds = 10;
 
-
 var mysql = require("mysql2");
 
-var hostname = "ipsumdb.mysql.database.azure.com";
-var database = "ipsumdb";
-var port = "3306";
-var username = "ipsumadmin";
-var password = "0e9e732d794b25a60b1b65e2067c23379da002a7*";
 
-var con = mysql.createConnection({
-    host: hostname,
-    user: username,
-    password,
-    database,
-    port,
+// Replace single connection with a connection pool
+var pool = mysql.createPool({
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_DEFAULT,
+    port: process.env.DB_PORT,
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 0,
+    ssl: {
+        rejectUnauthorized: true
+    }
 });
 
-con.connect(function (err) {
-    if (err) throw err;
-    console.log("Connected!");
-});
-
+// No need for explicit connection - the pool manages connections automatically
+console.log("Connection pool created!");
 
 app.get('/filter', (req, res) => {
   const { table, rol_id, nombre } = req.query;
@@ -43,14 +42,14 @@ app.get('/filter', (req, res) => {
   const nombreArray = nombre.split(',');
 
   if (rol_id) {
-    con.query('SELECT Concat(??, " ", ??, " ", ??) as nombre, id FROM usuarios where rol_id = ?', [nombreArray[0], nombreArray[1], nombreArray[2], rol_id], (err, results) => {
+    pool.query('SELECT Concat(??, " ", ??, " ", ??) as nombre, id FROM usuarios where rol_id = ?', [nombreArray[0], nombreArray[1], nombreArray[2], rol_id], (err, results) => {
       if (err) {
         return res.json(err);
       }
       return res.status(200).json(results);
     });
   } else if (isDisabled){
-    con.query('SELECT nombre, id from proyectos where activated = 0', [nombreArray[0], nombreArray[1], nombreArray[2], table], (err, results) => {
+    pool.query('SELECT nombre, id from proyectos where activated = 0', [nombreArray[0], nombreArray[1], nombreArray[2], table], (err, results) => {
       if (err) {
         return res.json(err);
       }
@@ -60,7 +59,7 @@ app.get('/filter', (req, res) => {
   } else {
     if (nombreArray.length > 1) {
 
-      con.query(`SELECT Concat(??, " ", ??, " ", ??) as nombre, id FROM ??`, [nombreArray[0], nombreArray[1], nombreArray[2], table], (err, results) => {
+      pool.query(`SELECT Concat(??, " ", ??, " ", ??) as nombre, id FROM ??`, [nombreArray[0], nombreArray[1], nombreArray[2], table], (err, results) => {
         if (err) {
           return res.json(err);
         }
@@ -68,7 +67,7 @@ app.get('/filter', (req, res) => {
       });
       
     } else {
-      con.query(`SELECT ??, id FROM ?? ${isDisabled == false && "where activated = 1"} `, [nombre, table], (err, results) => {
+      pool.query(`SELECT ??, id FROM ?? ${isDisabled == false && "where activated = 1"} `, [nombre, table], (err, results) => {
         if (err) {
           return res.json(err);
         }
@@ -79,8 +78,6 @@ app.get('/filter', (req, res) => {
 });
 
 app.get('/projectNames', (req, res) => {
-
-
   const query = req.query;
   const values = query.value.split(',');
   const order = query.order
@@ -149,7 +146,7 @@ app.get('/projectNames', (req, res) => {
 
   sqlQuery += ` order by fecha_ingreso ${order}`
 
-  con.query(sqlQuery, (err, results) => {
+  pool.query(sqlQuery, (err, results) => {
     if (err) {
       console.log(err)
       return res.json(err);
@@ -157,14 +154,11 @@ app.get('/projectNames', (req, res) => {
 
     return res.status(200).json(results);
   });
-
-
-
 });
 
 app.get('/getData/:name', (req, res) => {
     const {name} = req.params
-    con.query('Call getCardInfo(?)', [name] ,(err, results) => {
+    pool.query('Call getCardInfo(?)', [name] ,(err, results) => {
         if (err) {
             return res.json(err)
         }
@@ -173,7 +167,7 @@ app.get('/getData/:name', (req, res) => {
 })
 
 app.get('/getUsers', (req, res) => {
-  con.query('call getAllUsers()',(err, results) => {
+  pool.query('call getAllUsers()',(err, results) => {
     try{
         if (err) {
             return res.status(400).json(err)
@@ -183,13 +177,13 @@ app.get('/getUsers', (req, res) => {
     } catch (error){
         return res.status(400).json(error)
     }
-})
+  })
 })
 
 app.post('/login', (req, res) => {
   const {user, psw} = req.body
 
-  con.query('call getUserWithRole(?)', [user] ,(err, results) => {
+  pool.query('call getUserWithRole(?)', [user] ,(err, results) => {
       try{
           if (err) {
               console.log(err)
@@ -203,23 +197,6 @@ app.post('/login', (req, res) => {
           if (results[0][0].activated == 0) {
               return res.status(400).json({msj: "not users found", activated:false})
           }
-
-
-          /*
-          Descomentar esto por si quiero añadir la contraseña de un usuario manual 
-          bcrypt.hash(psw, saltRounds, (err, hash) => {
-            if (err) {
-                return res.status(500).json({msj: "Error hashing password", error: true})
-            }
-            
-            con.query('UPDATE usuarios SET password = ? WHERE nombre = ?', [hash, user] ,(err, results) => {
-                if (err) {
-                    return res.status(500).json({msj: "Error updating password", error: true})
-                }
-                return res.status(200).json({msj: "Successfully Updated", correct: true})
-            })
-        }) */
-
 
           // Compare the provided password with the stored hash
           bcrypt.compare(psw, results[0][0].password, (err, isMatch) => {
@@ -255,7 +232,7 @@ app.post('/changePassword', (req, res) => {
       return
   }
 
-  con.query('Select * from usuarios where nombre = ?', [user] ,(err, results) => {
+  pool.query('Select * from usuarios where nombre = ?', [user] ,(err, results) => {
       if (err) {
           return res.status(400).json(err)
       }
@@ -268,7 +245,7 @@ app.post('/changePassword', (req, res) => {
           return res.status(400).json({msj: "Emails doent match", emailError: true})
       }
 
-      con.query('UPDATE usuarios SET estado = 1 WHERE nombre = ?', [user] ,(err, results) => {
+      pool.query('UPDATE usuarios SET estado = 1 WHERE nombre = ?', [user] ,(err, results) => {
       })
       
       // Hash the password before storing it
@@ -277,7 +254,7 @@ app.post('/changePassword', (req, res) => {
               return res.status(500).json({msj: "Error hashing password", error: true})
           }
           
-          con.query('UPDATE usuarios SET password = ? WHERE nombre = ?', [hash, user] ,(err, results) => {
+          pool.query('UPDATE usuarios SET password = ? WHERE nombre = ?', [hash, user] ,(err, results) => {
               if (err) {
                   return res.status(500).json({msj: "Error updating password", error: true})
               }
@@ -288,7 +265,7 @@ app.post('/changePassword', (req, res) => {
 })
 
 app.get('/getBonos', (req, res) => {
-    con.query('Call getBonos()', (err, results) => {
+    pool.query('Call getBonos()', (err, results) => {
         if (err) {
             return res.json(err)
         }
@@ -299,7 +276,7 @@ app.get('/getBonos', (req, res) => {
 
   
 app.get('/getAdminData/', (req, res) => {
-    con.query('Call ObtenerNombresRelevantes()', (err, results) => {
+    pool.query('Call ObtenerNombresRelevantes()', (err, results) => {
         if (err) {
             return res.json(err)
         }
@@ -399,7 +376,7 @@ app.post('/saveData/', async (req, res) => {
   
     try {
       async function crearProyecto() {
-        con.query('SELECT id FROM variantes_bono WHERE id = ?', [newSubtipoSeleccionado], (err, results) => {
+        pool.query('SELECT id FROM variantes_bono WHERE id = ?', [newSubtipoSeleccionado], (err, results) => {
           if (err) {
             console.error('Database error:', err);
             return res.status(500).json({ message: 'Error checking variante_bono_id', error: err.message });
@@ -410,152 +387,151 @@ app.post('/saveData/', async (req, res) => {
             return res.status(400).json({ message: 'Invalid variante_bono_id. Please select a valid option.' });
           }
     
-    
           try {
-            
-          
-      
-          // If we reach here, the variante_bono_id is valid, so we can proceed with the insertion
-          con.beginTransaction(err => {
-            if (err) {
-              console.error('Transaction error:', err);
-              return res.status(500).json({ message: 'Error al iniciar la transacción', error: err.message });
-            }
-      
-            // Insert propietario
-            con.query('INSERT INTO propietarios (tipo_propietario_id, cedula) VALUES (?, ?)', 
-              [directionData.loteTipoIdentificacion == "pendiente" ? null : directionData.loteTipoIdentificacion, 
-                directionData.loteIdentificacion == "pendiente" ? null : directionData.loteIdentificacion], 
-              (err, propietarioResult) => {
+            // Get a connection from the pool for transaction
+            pool.getConnection((err, connection) => {
+              if (err) {
+                console.error('Transaction error:', err);
+                return res.status(500).json({ message: 'Error al iniciar la transacción', error: err.message });
+              }
+              
+              // Begin transaction
+              connection.beginTransaction((err) => {
                 if (err) {
-                  return con.rollback(() => {
-                    console.error('Propietario insertion error:', err);
-                    res.status(500).json({ message: 'Error al insertar propietario', error: err.message });
-                  });
+                  connection.release();
+                  console.error('Transaction error:', err);
+                  return res.status(500).json({ message: 'Error al iniciar la transacción', error: err.message });
                 }
-      
-                const propietarioId = propietarioResult.insertId;
-      
-                // Insert lote
-                con.query('INSERT INTO lotes (propietario_id, numero_plano_catastro, numero_finca, provincia, distrito, canton, senas_descripcion) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                  [propietarioId, directionData.numeroPlanoCatastro, directionData.finca, directionData.provincia, directionData.distrito, directionData.canton, directionData.otrasSenas],
-                  (err, loteResult) => {
+                
+                // Insert propietario
+                connection.query('INSERT INTO propietarios (tipo_propietario_id, cedula) VALUES (?, ?)', 
+                  [directionData.loteTipoIdentificacion == "pendiente" ? null : directionData.loteTipoIdentificacion, 
+                    directionData.loteIdentificacion == "pendiente" ? null : directionData.loteIdentificacion], 
+                  (err, propietarioResult) => {
                     if (err) {
-                      return con.rollback(() => {
-                        console.error('Lote insertion error:', err);
-                        res.status(500).json({ message: 'Error al insertar lote', error: err.message });
+                      return connection.rollback(() => {
+                        connection.release();
+                        console.error('Propietario insertion error:', err);
+                        res.status(500).json({ message: 'Error al insertar propietario', error: err.message });
                       });
                     }
-      
-                    const loteId = loteResult.insertId;
-      
-                    // Insert proyecto
-                    const headOfFamily = familyMembers.find(member => member.tipoMiembro == 'Jefe/a de Familia');
-                    const projectName = `${headOfFamily.nombre} ${headOfFamily.primerApellido} ${headOfFamily.segundoApellido}`;
-      
-                    con.query('INSERT INTO proyectos (nombre, descripcion, grupo_proyecto_id, tipo_bono_id, variante_bono_id, lote_id, fecha_ingreso, presupuesto, avaluo, entidad_id, centro_negocio_id, analista_asigna_entidad_id, analista_asigna_ipsum_id, fiscal_id, ingeniero_id, arquitecto_id, promotor_interno_id, codigo_apc, codigo_cfia, fis, constructor_id) VALUES (?, ?, ?, ?, ?, ?, CURDATE(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                      [projectName, 
-                       projectData.desc, 
-                       projectData.grupoSeleccionado, 
-                       projectData.bonoSeleccionado, 
-                       newSubtipoSeleccionado, 
-                       loteId, 
-                       formDataAdmin.presupuesto == "" ? null : formDataAdmin.presupuesto, 
-                       formDataAdmin.avaluo == "" ? null : formDataAdmin.avaluo, 
-                       formDataAdmin.entidad, 
-                       formDataAdmin.entidadSecundaria == "pendiente" ? null : formDataAdmin.entidadSecundaria, 
-                       formDataAdmin.analistaEntidad == "pendiente" ? null : formDataAdmin.analistaEntidad, 
-                       formDataAdmin.analistaIPSUM, 
-                       formDataAdmin.fiscalAsignado == "pendiente" ? null : formDataAdmin.fiscalAsignado, 
-                       formDataAdmin.ingenieroAsignado == "pendiente" ? null : formDataAdmin.ingenieroAsignado, 
-                       formDataAdmin.arquitecto == "pendiente" ? null : formDataAdmin.arquitecto, 
-                       formDataAdmin.Promotor_Ipsum == "pendiente" ? null : formDataAdmin.Promotor_Ipsum, 
-                       formDataAdmin.apc, 
-                       formDataAdmin.cfia, 
-                       projectData.hasFIS,
-                       formDataAdmin.constructor == "pendiente" ? null : formDataAdmin.constructor,],
-                      (err, proyectoResult) => {
+          
+                    const propietarioId = propietarioResult.insertId;
+          
+                    // Insert lote
+                    connection.query('INSERT INTO lotes (propietario_id, numero_plano_catastro, numero_finca, provincia, distrito, canton, senas_descripcion) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                      [propietarioId, directionData.numeroPlanoCatastro, directionData.finca, directionData.provincia, directionData.distrito, directionData.canton, directionData.otrasSenas],
+                      (err, loteResult) => {
                         if (err) {
-                          return con.rollback(() => {
-                            console.error('Proyecto insertion error:', err);
-                            res.status(500).json({ message: 'Error al insertar proyecto', error: err.message });
+                          return connection.rollback(() => {
+                            connection.release();
+                            console.error('Lote insertion error:', err);
+                            res.status(500).json({ message: 'Error al insertar lote', error: err.message });
                           });
                         }
-      
-                        const proyectoId = proyectoResult.insertId;
-    
-      
-                        // Insert family members
-                        const familyValues = familyMembers.map(member => [
-                          proyectoId, 
-                          member.tipoMiembro || null, 
-                          member.nombre || null, 
-                          member.primerApellido || null, 
-                          member.segundoApellido || null,
-                          member.identificacion || null, 
-                          member.tipoIdentificacion || null, 
-                          member.ingresos || null, 
-                          member.tipoIngresos || null,
-                          member.telefono || null, 
-                          member.tipoTelefono || null, 
-                          member.email || null, 
-                          member.adultoMayor || false, 
-                          member.discapacidad || false,
-                          member.cedulaFile || null
-                        ]);
-      
-                        con.query('INSERT INTO familias (proyecto_id, tipo_miembro, nombre, apellido1, apellido2, cedula, tipo_cedula, ingreso, tipo_ingreso, telefono, tipo_telefono, email, adulto_mayor, discapacidad, imagen_cedula) VALUES ?',
-                          [familyValues],
-                          (err) => {
+          
+                        const loteId = loteResult.insertId;
+          
+                        // Insert proyecto
+                        const headOfFamily = familyMembers.find(member => member.tipoMiembro == 'Jefe/a de Familia');
+                        const projectName = `${headOfFamily.nombre} ${headOfFamily.primerApellido} ${headOfFamily.segundoApellido}`;
+          
+                        connection.query('INSERT INTO proyectos (nombre, descripcion, grupo_proyecto_id, tipo_bono_id, variante_bono_id, lote_id, fecha_ingreso, presupuesto, avaluo, entidad_id, centro_negocio_id, analista_asigna_entidad_id, analista_asigna_ipsum_id, fiscal_id, ingeniero_id, arquitecto_id, promotor_interno_id, codigo_apc, codigo_cfia, fis, constructor_id) VALUES (?, ?, ?, ?, ?, ?, CURDATE(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                          [projectName, 
+                           projectData.desc, 
+                           projectData.grupoSeleccionado, 
+                           projectData.bonoSeleccionado, 
+                           newSubtipoSeleccionado, 
+                           loteId, 
+                           formDataAdmin.presupuesto == "" ? null : formDataAdmin.presupuesto, 
+                           formDataAdmin.avaluo == "" ? null : formDataAdmin.avaluo, 
+                           formDataAdmin.entidad, 
+                           formDataAdmin.entidadSecundaria == "pendiente" ? null : formDataAdmin.entidadSecundaria, 
+                           formDataAdmin.analistaEntidad == "pendiente" ? null : formDataAdmin.analistaEntidad, 
+                           formDataAdmin.analistaIPSUM, 
+                           formDataAdmin.fiscalAsignado == "pendiente" ? null : formDataAdmin.fiscalAsignado, 
+                           formDataAdmin.ingenieroAsignado == "pendiente" ? null : formDataAdmin.ingenieroAsignado, 
+                           formDataAdmin.arquitecto == "pendiente" ? null : formDataAdmin.arquitecto, 
+                           formDataAdmin.Promotor_Ipsum == "pendiente" ? null : formDataAdmin.Promotor_Ipsum, 
+                           formDataAdmin.apc, 
+                           formDataAdmin.cfia, 
+                           projectData.hasFIS,
+                           formDataAdmin.constructor == "pendiente" ? null : formDataAdmin.constructor,],
+                          (err, proyectoResult) => {
                             if (err) {
-                              return con.rollback(() => {
-                                console.error('Family members insertion error:', err);
-                                res.status(500).json({ message: 'Error al insertar miembros de la familia', error: err.message });
+                              return connection.rollback(() => {
+                                connection.release();
+                                console.error('Proyecto insertion error:', err);
+                                res.status(500).json({ message: 'Error al insertar proyecto', error: err.message });
                               });
                             }
-                          
-                            
-                          
+          
+                            const proyectoId = proyectoResult.insertId;
+        
+                            // Insert family members
+                            const familyValues = familyMembers.map(member => [
+                              proyectoId, 
+                              member.tipoMiembro || null, 
+                              member.nombre || null, 
+                              member.primerApellido || null, 
+                              member.segundoApellido || null,
+                              member.identificacion || null, 
+                              member.tipoIdentificacion || null, 
+                              member.ingresos || null, 
+                              member.tipoIngresos || null,
+                              member.telefono || null, 
+                              member.tipoTelefono || null, 
+                              member.email || null, 
+                              member.adultoMayor || false, 
+                              member.discapacidad || false,
+                              member.cedulaFile || null
+                            ]);
+          
+                            connection.query('INSERT INTO familias (proyecto_id, tipo_miembro, nombre, apellido1, apellido2, cedula, tipo_cedula, ingreso, tipo_ingreso, telefono, tipo_telefono, email, adulto_mayor, discapacidad, imagen_cedula) VALUES ?',
+                              [familyValues],
+                              (err) => {
+                                if (err) {
+                                  return connection.rollback(() => {
+                                    connection.release();
+                                    console.error('Family members insertion error:', err);
+                                    res.status(500).json({ message: 'Error al insertar miembros de la familia', error: err.message });
+                                  });
+                                }
+                                
+                                // Commit the transaction
+                                connection.commit((err) => {
+                                  if (err) {
+                                    return connection.rollback(() => {
+                                      connection.release();
+                                      console.error('Commit error:', err);
+                                      res.status(500).json({ message: 'Error al finalizar la transacción', error: err.message });
+                                    });
+                                  }
+                                  
+                                  // Release the connection back to the pool
+                                  connection.release();
+                                });
+                              }
+                            );
                           }
-                        
-                            
-                          
                         );
-                        con.commit((err) => {
-                          if (err) {
-                            return con.rollback(() => {
-                              console.error('Commit error:', err);
-                              res.status(500).json({ message: 'Error al finalizar la transacción', error: err.message });
-                            });
-                          }
-  
-                          
-                        });
                       }
                     );
                   }
                 );
-              }
-            );
-          
-    
-          
-          });
-    
-    
-    
+              });
+            });
           } catch (err) {
               console.log(err)
           }
         });
-        
       }
   
       await crearProyecto()
   
       await sleep(3000)
   
-        con.query('select * from proyectos order by id desc', (err, results) => {
+        pool.query('select * from proyectos order by id desc', (err, results) => {
           if (err) {
             console.log(err)
               return res.json(err)
@@ -565,9 +541,6 @@ app.post('/saveData/', async (req, res) => {
     } catch (error) {
       return res.status(200).json({ message: 'Error al guardar el proyecto', ok: false});
     }
-    // First, let's check if the variante_bono_id exists 
-
-    
 });
   
 app.post('/updateUser', (req, res) => {
@@ -612,9 +585,7 @@ app.post('/updateUser', (req, res) => {
       roleId = 10;
   }
 
-
-
-  con.query('UPDATE usuarios SET nombre = ?, apellido1 = ?, apellido2 = ?, rol_id = ?, correo_electronico = ? WHERE id = ?', [userName, lastName1, lastName2, roleId,email, id ] ,(err, results) => {
+  pool.query('UPDATE usuarios SET nombre = ?, apellido1 = ?, apellido2 = ?, rol_id = ?, correo_electronico = ? WHERE id = ?', [userName, lastName1, lastName2, roleId,email, id ] ,(err, results) => {
     try{
         if (err) {
             console.log(err)
@@ -671,44 +642,33 @@ app.post('/addUser', (req, res) => {
 
   }
 
-
   bcrypt.hash(process.env.DEFAULT_PASS, saltRounds, (err, hash) => {
     if (err) {
         return res.status(500).json({msj: "Error hashing password", error: true})
     }
     
-    
-    con.query('INSERT INTO usuarios (nombre, apellido1, apellido2, correo_electronico, rol_id, password) VALUES (?, ? ,?, ?, ?, ?)', [userName, lastName1, lastName2, email, roleId, hash] ,(err, results) => {
+    pool.query('INSERT INTO usuarios (nombre, apellido1, apellido2, correo_electronico, rol_id, password) VALUES (?, ? ,?, ?, ?, ?)', [userName, lastName1, lastName2, email, roleId, hash] ,(err, results) => {
       try{
           if (err) {
-  
               if (err.code = "ERR_DUP_ENTRY") {
                 console.log(err)
                 return res.status(400).json({msj: err.message})
-                
               }
-              
-              
           }
           return res.status(200).json(results[0])
       } catch (error){
         console.log(error.code)
           return res.status(400).json(error)
-          
       }
     })
   })
-
-
-
-
 })
 
 app.post('/changeStatus', (req, res) => {
   const {id, activated} = req.body
   const newValue = activated == 0 ? 1 : 0;
 
-  con.query('UPDATE usuarios SET activated = ? WHERE id = ?', [newValue, id] ,(err, results) => {
+  pool.query('UPDATE usuarios SET activated = ? WHERE id = ?', [newValue, id] ,(err, results) => {
     try{
         if (err) {
           return res.status(400).json(err)    
@@ -717,14 +677,13 @@ app.post('/changeStatus', (req, res) => {
     } catch (error){
       console.log(error.code)
         return res.status(400).json(error)
-        
     }
   })
 })
 
 app.get('/getProjectDetails/:id', (req, res) => {
   const {id} = req.params
-  con.query('call GetProjectInfo(?)', [id], (err, results) => {
+  pool.query('call GetProjectInfo(?)', [id], (err, results) => {
       if (err) {
           return res.json(err)
       }
@@ -733,7 +692,7 @@ app.get('/getProjectDetails/:id', (req, res) => {
 })
 
 app.get('/getEntidades', (req, res) => {
-  con.query('select * from entidades', (err, results) => {
+  pool.query('select * from entidades', (err, results) => {
       if (err) {
           return res.json(err)
       }
@@ -742,7 +701,7 @@ app.get('/getEntidades', (req, res) => {
 })
 
 app.get('/getBonosSimple', (req, res) => {
-  con.query('select * from tipos_bono', (err, results) => {
+  pool.query('select * from tipos_bono', (err, results) => {
       if (err) {
           return res.json(err)
       }
@@ -767,7 +726,7 @@ app.post('/updateData/', (req, res) => {
   }
 
   // First, let's check if the variante_bono_id exists
-  con.query('SELECT id FROM variantes_bono WHERE id = ?', [newSubtipoSeleccionado], (err, results) => {
+  pool.query('SELECT id FROM variantes_bono WHERE id = ?', [newSubtipoSeleccionado], (err, results) => {
     if (err) {
       console.error('Database error:', err);
       return res.status(500).json({ message: 'Error checking variante_bono_id', error: err.message });
@@ -778,48 +737,53 @@ app.post('/updateData/', (req, res) => {
       return res.status(400).json({ message: 'Invalid variante_bono_id. Please select a valid option.' });
     }
 
-
     try {
-      
-    
-
-    // If we reach here, the variante_bono_id is valid, so we can proceed with the insertion
-    con.beginTransaction(err => {
-      if (err) {
-        console.error('Transaction error:', err);
-        return res.status(500).json({ message: 'Error al iniciar la transacción', error: err.message });
-      }
-
-      // Insert propietario
-      con.query('Update propietarios set tipo_propietario_id = ?, cedula = ? where id = ?', 
-        [directionData.loteTipoIdentificacion, directionData.loteIdentificacion, directionData.lote_id], 
-        (err, propietarioResult) => {
+      // Get a connection from the pool for transaction
+      pool.getConnection((err, connection) => {
+        if (err) {
+          console.error('Transaction error:', err);
+          return res.status(500).json({ message: 'Error al iniciar la transacción', error: err.message });
+        }
+        
+        // Begin transaction
+        connection.beginTransaction((err) => {
           if (err) {
-            return con.rollback(() => {
-              console.error('Propietario insertion error:', err);
-              return res.status(500).json({ message: 'Error al insertar propietario', error: err.message });
-            });
+            connection.release();
+            console.error('Transaction error:', err);
+            return res.status(500).json({ message: 'Error al iniciar la transacción', error: err.message });
           }
+          
+          // Update propietario
+          connection.query('Update propietarios set tipo_propietario_id = ?, cedula = ? where id = ?', 
+            [directionData.loteTipoIdentificacion, directionData.loteIdentificacion, directionData.lote_id], 
+            (err, propietarioResult) => {
+              if (err) {
+                return connection.rollback(() => {
+                  connection.release();
+                  console.error('Propietario insertion error:', err);
+                  return res.status(500).json({ message: 'Error al insertar propietario', error: err.message });
+                });
+              }
 
-
-          // Insert lote
-          con.query('Update lotes set numero_plano_catastro = ?, numero_finca = ?, provincia = ?, distrito = ?, canton = ?, senas_descripcion = ? where id = ?',
+              // Update lote
+            connection.query('Update lotes set numero_plano_catastro = ?, numero_finca = ?, provincia = ?, distrito = ?, canton = ?, senas_descripcion = ? where id = ?',
             [directionData.numeroPlanoCatastro, directionData.finca, directionData.provincia, directionData.distrito, directionData.canton, directionData.otrasSenas, directionData.lote_id],
             (err, loteResult) => {
               if (err) {
-                return con.rollback(() => {
+                return connection.rollback(() => {
+                  connection.release();
                   console.error('Lote insertion error:', err);
                   res.status(500).json({ message: 'Error al insertar lote', error: err.message });
                 });
               }
 
-              // Insert proyecto
+              // Update proyecto
               const headOfFamily = familyMembers.find(member => member.tipoMiembro == 'Jefe/a de Familia' || member.tipoMiembro == 'jefe/a de familia');
               const projectName = `${headOfFamily.nombre} ${headOfFamily.primerApellido} ${headOfFamily.segundoApellido}`;
 
               console.log(formDataAdmin)
 
-              con.query('Update proyectos set nombre = ?, descripcion = ?, grupo_proyecto_id = ?, tipo_bono_id = ?, variante_bono_id = ?, fecha_ingreso = CURDATE(), presupuesto = ?, avaluo = ?, entidad_id = ?, centro_negocio_id = ?, analista_asigna_entidad_id = ?, analista_asigna_ipsum_id = ?, fiscal_id = ?, ingeniero_id = ?, arquitecto_id = ?, promotor_interno_id = ?, codigo_apc = ?, codigo_cfia = ?, fis = ?, constructor_id = ? where id = ?',
+              connection.query('Update proyectos set nombre = ?, descripcion = ?, grupo_proyecto_id = ?, tipo_bono_id = ?, variante_bono_id = ?, fecha_ingreso = CURDATE(), presupuesto = ?, avaluo = ?, entidad_id = ?, centro_negocio_id = ?, analista_asigna_entidad_id = ?, analista_asigna_ipsum_id = ?, fiscal_id = ?, ingeniero_id = ?, arquitecto_id = ?, promotor_interno_id = ?, codigo_apc = ?, codigo_cfia = ?, fis = ?, constructor_id = ? where id = ?',
                 [projectName, 
                   projectData.desc, 
                   projectData.grupoSeleccionado, 
@@ -842,18 +806,18 @@ app.post('/updateData/', (req, res) => {
                  projectData.idProyecto],
                 (err, proyectoResult) => {
                   if (err) {
-                    return con.rollback(() => {
+                    return connection.rollback(() => {
+                      connection.release();
                       console.error('Proyecto insertion error:', err);
                       return res.status(500).json({ message: 'Error al insertar proyecto', error: err.message });
                     });
                   }
 
-
                   for (let i = 0; i < familyMembers.length; i++) {
                     console.log(familyMembers[i])
 
                     if (familyMembers[i].id) {
-                      con.query('Update familias set tipo_miembro = ?, nombre = ?, apellido1 = ?, apellido2 = ?, cedula = ?, tipo_cedula = ?, ingreso = ?, tipo_ingreso = ?, telefono = ?, tipo_telefono = ?, email = ?, adulto_mayor = ?, discapacidad = ?, imagen_cedula = ? where id = ?',
+                      connection.query('Update familias set tipo_miembro = ?, nombre = ?, apellido1 = ?, apellido2 = ?, cedula = ?, tipo_cedula = ?, ingreso = ?, tipo_ingreso = ?, telefono = ?, tipo_telefono = ?, email = ?, adulto_mayor = ?, discapacidad = ?, imagen_cedula = ? where id = ?',
                         [familyMembers[i].tipoMiembro, 
                         familyMembers[i].nombre, 
                         familyMembers[i].primerApellido, 
@@ -871,13 +835,14 @@ app.post('/updateData/', (req, res) => {
                         familyMembers[i].id],
                         (err) => {
                           if (err) {
-                            return con.rollback(() => {
+                            return connection.rollback(() => {
+                              connection.release();
                               console.error('Family members insertion error:', err);
                               return res.status(500).json({ message: 'Error al insertar miembros de la familia', error: err.message });
                             });
                           }});
                     } else {
-                      con.query('Insert into familias (proyecto_id, tipo_miembro, nombre, apellido1, apellido2, cedula, tipo_cedula, ingreso, tipo_ingreso, telefono, tipo_telefono , email, adulto_mayor, discapacidad, imagen_cedula) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                      connection.query('Insert into familias (proyecto_id, tipo_miembro, nombre, apellido1, apellido2, cedula, tipo_cedula, ingreso, tipo_ingreso, telefono, tipo_telefono , email, adulto_mayor, discapacidad, imagen_cedula) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                         [projectData.idProyecto, 
                           familyMembers[i].tipoMiembro, 
                           familyMembers[i].nombre, 
@@ -895,58 +860,55 @@ app.post('/updateData/', (req, res) => {
                           familyMembers[i].cedulaFile ? familyMembers[i].cedulaFile : null],
                         (err) => {
                           if (err) {
-                            return con.rollback(() => {
+                            return connection.rollback(() => {
+                              connection.release();
                               console.error('Family members insertion error:', err);
                               return res.status(500).json({ message: 'Error al insertar miembros de la familia', error: err.message });
                             });
                           }});
                     }
-
-
                   }
 
                   for (let i = 0; i < deletedMembers.length; i++) {
-                    con.query('Delete from familias where id = ?', [deletedMembers[i].id],
+                    connection.query('Delete from familias where id = ?', [deletedMembers[i].id],
                       (err) => {
                         if (err) {
-                          return con.rollback(() => {
+                          return connection.rollback(() => {
+                            connection.release();
                             console.error('Family members insertion error:', err);
                             res.status(500).json({ message: 'Error al insertar miembros de la familia', error: err.message });
                           });
                         }});
-
                   }
 
-
-
-                  con.commit(err => {
+                  connection.commit(err => {
                     if (err) {
-                      return con.rollback(() => {
+                      return connection.rollback(() => {
+                        connection.release();
                         console.error('Commit error:', err);
                         res.status(500).json({ message: 'Error al finalizar la transacción', error: err.message });
                       });
                     }
+                    connection.release();
                     console.log("Proyecto guardado exitosamente")
                     res.status(200).json({ message: 'Proyecto guardado exitosamente' });
                   });
-
-                  
                 }
               );
             }
           );
-        }
-      );
-    });
-
-    } catch (err) {
+          });
+        })});
+        
+      
+    }catch (err) {
         console.log(err)
     }
   });
 });
 
 app.get('/getEtapas', (req, res) => {
-  con.query('call getEtapas()', (err, results) => {
+  pool.query('call getEtapas()', (err, results) => {
       if (err) {
           return res.json(err)
       }
@@ -959,7 +921,7 @@ app.post('/updateEtapa', (req, res) => {
   
   const subetapaFixed = subetapa == 0 ? null : subetapa
 
-  con.query('update proyectos set etapa_actual_id = ?, subetapa_actual_id = ? where id = ?', [etapa, subetapaFixed, id], (err, results) => {
+  pool.query('update proyectos set etapa_actual_id = ?, subetapa_actual_id = ? where id = ?', [etapa, subetapaFixed, id], (err, results) => {
       if (err) {
         console.log(err)
           return res.json(err)
@@ -968,19 +930,17 @@ app.post('/updateEtapa', (req, res) => {
   })
 })
 
-
 app.post('/insertBitacora', (req, res) => {
   const {descripcion, color, usuario, proyecto, time, tipo} = req.body
   var newDate = new Date(time)
 
-
-  con.query('insert into entradas_bitacora (descripcion, color, usuario_id, proyecto_id, fecha_ingreso, tipo) values (?, ? ,?, ?, ?, ?)', [descripcion, color, usuario, proyecto, newDate, tipo], (err, results) => {
+  pool.query('insert into entradas_bitacora (descripcion, color, usuario_id, proyecto_id, fecha_ingreso, tipo) values (?, ? ,?, ?, ?, ?)', [descripcion, color, usuario, proyecto, newDate, tipo], (err, results) => {
       if (err) {
         console.log(err)
           return res.json(err)
       }
 
-      con.query('update proyectos set estado_color = ? where id = ?', [color, proyecto], (err, results) => {
+      pool.query('update proyectos set estado_color = ? where id = ?', [color, proyecto], (err, results) => {
         if (err) {
           console.log(err)
             return res.json(err)
@@ -1004,7 +964,7 @@ app.post('/insertData', (req, res) => {
 
   const clavesConBackticks = claves.map(clave => `\`${clave}\``);
 
-  con.query('insert into ?? (??) values (?)', [tabla,claves, valores], (err, results) => {
+  pool.query('insert into ?? (??) values (?)', [tabla,claves, valores], (err, results) => {
       if (err) {
         console.log(err)
           return res.json(err)
@@ -1013,12 +973,11 @@ app.post('/insertData', (req, res) => {
   })
 })
 
-
 app.get('/getGenerics', (req, res) => {
   const query = req.query;
   const table = query.table
 
-  con.query('select * from ??', [table], (err, results) => {
+  pool.query('select * from ??', [table], (err, results) => {
       if (err) {
           return res.json(err)
       }
@@ -1031,34 +990,30 @@ app.post('/genericUpdate', (req, res) => {
   const claves = [];
   const valores = [];
 
-  
   for (const [clave, valor] of Object.entries(dataEdit)) {
       claves.push(clave);
       valores.push(valor);
   }
 
+  let i;
   for (i = 0; i < claves.length; i++) {
     if (claves[i] !== "id") {
-      con.query('Update ?? set ?? = ? where id = ?', [table ,claves[i], valores[i], dataEdit.id ], (err, results) => {
+      pool.query('Update ?? set ?? = ? where id = ?', [table ,claves[i], valores[i], dataEdit.id ], (err, results) => {
         if (err) {
           console.log(err)
             return res.json(err)
         }
-
-
       })
     }
   }
   return res.status(200).json({msj: "Actualizado correctamente"})
-
-
 })
 
 app.post('/updateStatusGenerics', (req, res) => {
   const {id, activated, table} = req.body
   const newValue = activated == 0 ? 1 : 0;
 
-  con.query('UPDATE ?? SET activated = ? WHERE id = ?', [table, newValue, id] ,(err, results) => {
+  pool.query('UPDATE ?? SET activated = ? WHERE id = ?', [table, newValue, id] ,(err, results) => {
     try{
         if (err) {
           return res.status(400).json(err)    
@@ -1067,14 +1022,12 @@ app.post('/updateStatusGenerics', (req, res) => {
     } catch (error){
       console.log(error.code)
         return res.status(400).json(error)
-        
     }
   })
 })
 
 app.get('/getGrupos', (req, res) => {
-
-  con.query('select * from grupos_proyectos', (err, results) => {
+  pool.query('select * from grupos_proyectos', (err, results) => {
       if (err) {
           return res.json(err)
       }
@@ -1086,7 +1039,7 @@ app.post('/deleteProyecto', (req, res) => {
   const {id, currentStatus} = req.body
   let newStatus = currentStatus == 1 ? 0 : 1
 
-  con.query('UPDATE proyectos SET activated = ? WHERE id = ?', [newStatus, id] ,(err, results) => {
+  pool.query('UPDATE proyectos SET activated = ? WHERE id = ?', [newStatus, id] ,(err, results) => {
     try{
         if (err) {
           return res.status(400).json(err)    
@@ -1095,7 +1048,6 @@ app.post('/deleteProyecto', (req, res) => {
     } catch (error){
       console.log(error.code)
         return res.status(400).json(error)
-        
     }
   })
 })
@@ -1105,8 +1057,7 @@ app.get('/getEmails', (req, res) => {
   const emails = query.emails.split(",")
   const idProyecto = query.id_proyecto
 
-
-  con.query('select ?? from proyectos where id in (?)',[emails, idProyecto], (err, results) => {
+  pool.query('select ?? from proyectos where id in (?)',[emails, idProyecto], (err, results) => {
       if (err) {
           console.log(err)
           return res.json(err)
@@ -1115,13 +1066,12 @@ app.get('/getEmails', (req, res) => {
 
       for (const [clave, valor] of Object.entries(results[0])) {
           ids.push(valor);
-
       }
 
       ids.push(1)
       console.log(ids)
       
-      con.query('select correo_electronico from usuarios where id in (?)',[ids], (err, results) => {
+      pool.query('select correo_electronico from usuarios where id in (?)',[ids], (err, results) => {
         if (err) {
             console.log(err)
             return res.json(err)
@@ -1129,7 +1079,6 @@ app.get('/getEmails', (req, res) => {
         
         return res.status(200).json({emails: results, ids})
       })
-      
   })
 })
 
@@ -1137,17 +1086,14 @@ app.post('/forgetPassword', (req, res) => {
   const body = req.body;
   const email = body.email
 
-  con.query('select * from usuarios where correo_electronico = ?',[email], async (err, results) => {
+  pool.query('select * from usuarios where correo_electronico = ?',[email], async (err, results) => {
       if (err) {
-        
           return res.json(err)
       }
 
       if (results.length == 0) {
         res.status(200).json({noUser: true, results: results})
-        
       } else {
-
         try {
           const newPassword = generatePassword.generate({
             length: 10,
@@ -1162,8 +1108,6 @@ app.post('/forgetPassword', (req, res) => {
             }
           });
   
-          
-  
           const mailOptions = {
             from: process.env.EMAIL_USER,
             to: email, // Convertir array de destinatarios a string
@@ -1171,7 +1115,6 @@ app.post('/forgetPassword', (req, res) => {
             html: `<p>Su nueva contraseña temporal es ${newPassword}, por favor iniciar sesión y cambiar a una nueva contraseña</p>` // Puedes usar HTML en el contenido
           };
       
-          
           // Enviar el correo
           const info = await transporter.sendMail(mailOptions);
 
@@ -1180,23 +1123,17 @@ app.post('/forgetPassword', (req, res) => {
               return res.status(500).json({ msj: "Error hashing password", error: true });
             }
 
-            con.query('Update usuarios set password = ?, estado = 0 where correo_electronico = ?',[hash, email], (err, results) => {
+            pool.query('Update usuarios set password = ?, estado = 0 where correo_electronico = ?',[hash, email], (err, results) => {
               if (err) {
                 console.log(err)
                   return res.json(err)
               }
-              
-        
               return res.status(200).json(results)
             })
           })
-
-
         } catch (error) {
           console.log(error)
         }
-
-        
       }
   })
 })
@@ -1205,12 +1142,10 @@ app.post('/pushPrueba', (req, res) => {
   const body = req.body;
   const token = body.token
 
-  con.query('insert into tokenTest (token) values (?)',[token], (err, results) => {
+  pool.query('insert into tokenTest (token) values (?)',[token], (err, results) => {
       if (err) {
-        
           return res.json(err)
       }
-
       return res.status(200).json(results)
   })
 })
@@ -1219,7 +1154,7 @@ app.get('/getNotisLeidas', (req, res) => {
   const query = req.query;
   const user_id = query.user_id
 
-  con.query('select * from notificaciones where usuario_id = ? and leido = 0 order by fecha_ingreso desc', [user_id], (err, results) => {
+  pool.query('select * from notificaciones where usuario_id = ? and leido = 0 order by fecha_ingreso desc', [user_id], (err, results) => {
       if (err) {
           return res.json(err)
       }
@@ -1227,12 +1162,11 @@ app.get('/getNotisLeidas', (req, res) => {
   })
 })
 
-
 app.get('/getAllNotis', (req, res) => {
   const query = req.query;
   const user_id = query.user_id
 
-  con.query('select * from notificaciones where usuario_id = ? order by fecha_ingreso desc', [user_id], (err, results) => {
+  pool.query('select * from notificaciones where usuario_id = ? order by fecha_ingreso desc', [user_id], (err, results) => {
       if (err) {
         console.log(err)
           return res.json(err)
@@ -1246,7 +1180,7 @@ app.post('/setReaded', (req, res) => {
   const body = req.body;
   const id = body.id;
 
-  con.query('update notificaciones set leido = 1 where id= ? ', [id], (err, results) => {
+  pool.query('update notificaciones set leido = 1 where id= ? ', [id], (err, results) => {
       if (err) {
           return res.json(err)
       }
@@ -1258,7 +1192,7 @@ app.post('/setAllReaded', (req, res) => {
   const body = req.body;
   const id = body.id;
 
-  con.query('update notificaciones set leido = 1 where usuario_id= ? ', [id], (err, results) => {
+  pool.query('update notificaciones set leido = 1 where usuario_id= ? ', [id], (err, results) => {
       if (err) {
           return res.json(err)
       }
@@ -1270,7 +1204,7 @@ app.post('/deleteReaded', (req, res) => {
   const body = req.body;
   const id = body.id;
 
-  con.query('delete from notificaciones where usuario_id= ? and leido = 1 ', [id], (err, results) => {
+  pool.query('delete from notificaciones where usuario_id= ? and leido = 1 ', [id], (err, results) => {
       if (err) {
           return res.json(err)
       }
@@ -1286,8 +1220,7 @@ app.post('/insertNoti', (req, res) => {
   var newDate = new Date(time)
   console.log("BBBBBBBBBBBBBBBBBB")
 
-
-  con.query('Insert into notificaciones(message, usuario_id, fecha_ingreso) values (?, ?, ?)', [message, user_id, newDate], (err, results) => {
+  pool.query('Insert into notificaciones(message, usuario_id, fecha_ingreso) values (?, ?, ?)', [message, user_id, newDate], (err, results) => {
       if (err) {
         console.error(err)
           return res.json(err)
@@ -1298,10 +1231,11 @@ app.post('/insertNoti', (req, res) => {
   })
 })
 
+// Use the PORT environment variable if available, otherwise use 3001
+const PORT = process.env.PORT || 3001;
 
-
-
-app.listen(3001, () => {
+app.listen(PORT, () => {
+  console.log(`Legacy server listening on port ${PORT}...`);
 })
 
 module.exports = app;
