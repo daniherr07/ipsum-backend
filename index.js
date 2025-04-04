@@ -367,11 +367,10 @@ app.post('/saveData/', async (req, res) => {
       return res.status(400).json({ message: 'Debe haber al menos un miembro de familia que sea jefe/a de hogar' });
     }
 
-    const newSubtipoSeleccionado = projectData.subtipoSeleccionado
+    var newSubtipoSeleccionado = projectData.subtipoSeleccionado
   
     if (!newSubtipoSeleccionado) {
-        console.log("error 1")
-      return res.status(400).json({ message: 'variante_bono_id is required' });
+      newSubtipoSeleccionado = null
     }
   
     try {
@@ -380,11 +379,6 @@ app.post('/saveData/', async (req, res) => {
           if (err) {
             console.error('Database error:', err);
             return res.status(500).json({ message: 'Error checking variante_bono_id', error: err.message });
-          }
-          
-          if (results.length === 0) {
-            console.log("Error2")
-            return res.status(400).json({ message: 'Invalid variante_bono_id. Please select a valid option.' });
           }
     
           try {
@@ -480,14 +474,13 @@ app.post('/saveData/', async (req, res) => {
                               member.ingresos || null, 
                               member.tipoIngresos || null,
                               member.telefono || null, 
-                              member.tipoTelefono || null, 
                               member.email || null, 
                               member.adultoMayor || false, 
                               member.discapacidad || false,
                               member.cedulaFile || null
                             ]);
           
-                            connection.query('INSERT INTO familias (proyecto_id, tipo_miembro, nombre, apellido1, apellido2, cedula, tipo_cedula, ingreso, tipo_ingreso, telefono, tipo_telefono, email, adulto_mayor, discapacidad, imagen_cedula) VALUES ?',
+                            connection.query('INSERT INTO familias (proyecto_id, tipo_miembro, nombre, apellido1, apellido2, cedula, tipo_cedula, ingreso, tipo_ingreso, telefono, email, adulto_mayor, discapacidad, imagen_cedula) VALUES ?',
                               [familyValues],
                               (err) => {
                                 if (err) {
@@ -718,11 +711,10 @@ app.post('/updateData/', (req, res) => {
     return res.status(400).json({ message: 'Debe haber al menos un miembro de familia que sea jefe/a de hogar' });
   }
 
-  const newSubtipoSeleccionado = projectData.subtipoSeleccionado
+  var newSubtipoSeleccionado = projectData.subtipoSeleccionado
 
   if (!newSubtipoSeleccionado) {
-      console.log("error 1")
-    return res.status(400).json({ message: 'variante_bono_id is required' });
+    newSubtipoSeleccionado = null
   }
 
   // First, let's check if the variante_bono_id exists
@@ -732,10 +724,6 @@ app.post('/updateData/', (req, res) => {
       return res.status(500).json({ message: 'Error checking variante_bono_id', error: err.message });
     }
     
-    if (results.length === 0) {
-      console.log("Error2")
-      return res.status(400).json({ message: 'Invalid variante_bono_id. Please select a valid option.' });
-    }
 
     try {
       // Get a connection from the pool for transaction
@@ -817,7 +805,7 @@ app.post('/updateData/', (req, res) => {
                     console.log(familyMembers[i])
 
                     if (familyMembers[i].id) {
-                      connection.query('Update familias set tipo_miembro = ?, nombre = ?, apellido1 = ?, apellido2 = ?, cedula = ?, tipo_cedula = ?, ingreso = ?, tipo_ingreso = ?, telefono = ?, tipo_telefono = ?, email = ?, adulto_mayor = ?, discapacidad = ?, imagen_cedula = ? where id = ?',
+                      connection.query('Update familias set tipo_miembro = ?, nombre = ?, apellido1 = ?, apellido2 = ?, cedula = ?, tipo_cedula = ?, ingreso = ?, tipo_ingreso = ?, telefono = ?, email = ?, adulto_mayor = ?, discapacidad = ?, imagen_cedula = ? where id = ?',
                         [familyMembers[i].tipoMiembro, 
                         familyMembers[i].nombre, 
                         familyMembers[i].primerApellido, 
@@ -827,7 +815,6 @@ app.post('/updateData/', (req, res) => {
                         familyMembers[i].ingresos == "" ? null : familyMembers[i].ingresos, 
                         familyMembers[i].tipoIngresos == "" ? null : familyMembers[i].tipoIngresos, 
                         familyMembers[i].telefono, 
-                        familyMembers[i].tipoTelefono == "" ? null : familyMembers[i].tipoTelefono, 
                         familyMembers[i].email, 
                         familyMembers[i].adultoMayor, 
                         familyMembers[i].discapacidad, 
@@ -842,7 +829,7 @@ app.post('/updateData/', (req, res) => {
                             });
                           }});
                     } else {
-                      connection.query('Insert into familias (proyecto_id, tipo_miembro, nombre, apellido1, apellido2, cedula, tipo_cedula, ingreso, tipo_ingreso, telefono, tipo_telefono , email, adulto_mayor, discapacidad, imagen_cedula) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                      connection.query('Insert into familias (proyecto_id, tipo_miembro, nombre, apellido1, apellido2, cedula, tipo_cedula, ingreso, tipo_ingreso, telefono, email, adulto_mayor, discapacidad, imagen_cedula) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                         [projectData.idProyecto, 
                           familyMembers[i].tipoMiembro, 
                           familyMembers[i].nombre, 
@@ -853,7 +840,6 @@ app.post('/updateData/', (req, res) => {
                           familyMembers[i].ingresos == "" ? null : familyMembers[i].ingresos, 
                           familyMembers[i].tipoIngresos == "" ? null : familyMembers[i].tipoIngresos, 
                           familyMembers[i].telefono, 
-                          familyMembers[i].tipoTelefono == "" ? null : familyMembers[i].tipoTelefono, 
                           familyMembers[i].email, 
                           familyMembers[i].adultoMayor, 
                           familyMembers[i].discapacidad, 
