@@ -473,6 +473,7 @@ app.post('/saveData/', async (req, res) => {
                               member.tipoIdentificacion || null, 
                               member.ingresos || null, 
                               member.tipoIngresos || null,
+                              member.otroIngreso || "N/A",
                               member.telefono || null, 
                               member.email || null, 
                               member.adultoMayor || false, 
@@ -480,7 +481,7 @@ app.post('/saveData/', async (req, res) => {
                               member.cedulaFile || null
                             ]);
           
-                            connection.query('INSERT INTO familias (proyecto_id, tipo_miembro, nombre, apellido1, apellido2, cedula, tipo_cedula, ingreso, tipo_ingreso, telefono, email, adulto_mayor, discapacidad, imagen_cedula) VALUES ?',
+                            connection.query('INSERT INTO familias (proyecto_id, tipo_miembro, nombre, apellido1, apellido2, cedula, tipo_cedula, ingreso, tipo_ingreso, otroIngreso, telefono, email, adulto_mayor, discapacidad, imagen_cedula) VALUES ?',
                               [familyValues],
                               (err) => {
                                 if (err) {
@@ -805,7 +806,7 @@ app.post('/updateData/', (req, res) => {
                     console.log(familyMembers[i])
 
                     if (familyMembers[i].id) {
-                      connection.query('Update familias set tipo_miembro = ?, nombre = ?, apellido1 = ?, apellido2 = ?, cedula = ?, tipo_cedula = ?, ingreso = ?, tipo_ingreso = ?, telefono = ?, email = ?, adulto_mayor = ?, discapacidad = ?, imagen_cedula = ? where id = ?',
+                      connection.query('Update familias set tipo_miembro = ?, nombre = ?, apellido1 = ?, apellido2 = ?, cedula = ?, tipo_cedula = ?, ingreso = ?, tipo_ingreso = ?, otroIngreso = ?, telefono = ?, email = ?, adulto_mayor = ?, discapacidad = ?, imagen_cedula = ? where id = ?',
                         [familyMembers[i].tipoMiembro, 
                         familyMembers[i].nombre, 
                         familyMembers[i].primerApellido, 
@@ -813,7 +814,8 @@ app.post('/updateData/', (req, res) => {
                         familyMembers[i].identificacion, 
                         familyMembers[i].tipoIdentificacion, 
                         familyMembers[i].ingresos == "" ? null : familyMembers[i].ingresos, 
-                        familyMembers[i].tipoIngresos == "" ? null : familyMembers[i].tipoIngresos, 
+                        familyMembers[i].tipoIngresos == "" ? null : familyMembers[i].tipoIngresos,
+                        familyMembers[i].otroIngreso == "N/A" ? null : familyMembers[i].otroIngreso, 
                         familyMembers[i].telefono, 
                         familyMembers[i].email, 
                         familyMembers[i].adultoMayor, 
@@ -838,7 +840,8 @@ app.post('/updateData/', (req, res) => {
                           familyMembers[i].identificacion, 
                           familyMembers[i].tipoIdentificacion, 
                           familyMembers[i].ingresos == "" ? null : familyMembers[i].ingresos, 
-                          familyMembers[i].tipoIngresos == "" ? null : familyMembers[i].tipoIngresos, 
+                          familyMembers[i].tipoIngresos == "" ? null : familyMembers[i].tipoIngresos,
+                          familyMembers[i].otroIngreso == "" ? "N/A" : familyMembers[i].otroIngreso, 
                           familyMembers[i].telefono, 
                           familyMembers[i].email, 
                           familyMembers[i].adultoMayor, 
