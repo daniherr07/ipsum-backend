@@ -5,15 +5,16 @@ require("dotenv").config();
 
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 /** Middleware para detección de errores */
-app.use((err, req, res) => {
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: "Internal server error" });
 });
 
 app.use("/", require("./routes"));
 
-console.log("Connection pool created!");
 
 module.exports = app;
