@@ -830,7 +830,7 @@ app.post('/updateData/', (req, res) => {
                             });
                           }});
                     } else {
-                      connection.query('Insert into familias (proyecto_id, tipo_miembro, nombre, apellido1, apellido2, cedula, tipo_cedula, ingreso, tipo_ingreso, telefono, email, adulto_mayor, discapacidad, imagen_cedula) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                      connection.query('Insert into familias (proyecto_id, tipo_miembro, nombre, apellido1, apellido2, cedula, tipo_cedula, ingreso, tipo_ingreso, otro_ingreso, telefono, email, adulto_mayor, discapacidad, imagen_cedula) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                         [projectData.idProyecto, 
                           familyMembers[i].tipoMiembro, 
                           familyMembers[i].nombre, 
