@@ -1,0 +1,39 @@
+const express = require("express");
+const router = express.Router();
+const db = require("../../lib/db");
+
+router.post("/", async (req, res) => {
+  if (!req.body) {
+    console.log(req.body);
+    res
+      .status(400)
+      .json({ msg: "Petición de login inválida, debe tener un cuerpo" });
+    throw new Error("Petición Inválida: Sin Cuerpo");
+  }
+
+  const { adminForm, proyecto_id } = req.body;
+  const ids = ["entidad_id", "centro_negocio_id", "analista_entidad_id"];
+
+  ids.forEach((key) => {
+    adminForm[key] =
+      adminForm[key] === "" || adminForm[key] == null
+        ? null
+        : Number(adminForm[key]);
+  });
+
+  const adminUpdate = await db
+    .update("proyectos_admins", adminForm, "proyecto_id = ?", [proyecto_id])
+    .catch((err) => {
+      res.status(400).json({
+        msg: `No se pudo actualizar la información administrativa`,
+        error: err,
+      });
+      throw new Error(
+        `No se pudo actualizar la información administrativa` + err,
+      );
+    });
+
+  return res.status(200).json(adminUpdate);
+});
+
+module.exports = router;
