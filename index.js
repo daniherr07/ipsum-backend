@@ -28,7 +28,7 @@ var pool = mysql.createPool({
   enableKeepAlive: true,
   keepAliveInitialDelay: 0,
   ssl: {
-    rejectUnauthorized: true,
+    rejectUnauthorized: false,
   },
 });
 
@@ -231,25 +231,21 @@ app.post("/login", (req, res) => {
         console.log(isMatch);
         if (isMatch) {
           if (results[0][0].estado == 0) {
-            return res
-              .status(200)
-              .json({
-                msj: "Usuario autorizado",
-                authorized: true,
-                newUser: true,
-                rol: results[0][0].role_name,
-              });
+            return res.status(200).json({
+              msj: "Usuario autorizado",
+              authorized: true,
+              newUser: true,
+              rol: results[0][0].role_name,
+            });
           } else {
-            return res
-              .status(200)
-              .json({
-                msj: "Usuario autorizado",
-                authorized: true,
-                id: results[0][0].id,
-                newUser: false,
-                rol: results[0][0].role_name,
-                user: results[0][0].user_name,
-              });
+            return res.status(200).json({
+              msj: "Usuario autorizado",
+              authorized: true,
+              id: results[0][0].id,
+              newUser: false,
+              rol: results[0][0].role_name,
+              user: results[0][0].user_name,
+            });
           }
         } else {
           return res.status(400).json({ msj: "Bad user or password" });
@@ -447,12 +443,10 @@ app.post("/saveData/", async (req, res) => {
     (member) => member.tipoMiembro === "Jefe/a de Familia",
   );
   if (!hasHeadOfHousehold) {
-    return res
-      .status(400)
-      .json({
-        message:
-          "Debe haber al menos un miembro de familia que sea jefe/a de hogar",
-      });
+    return res.status(400).json({
+      message:
+        "Debe haber al menos un miembro de familia que sea jefe/a de hogar",
+    });
   }
 
   var newSubtipoSeleccionado = projectData.subtipoSeleccionado;
@@ -469,12 +463,10 @@ app.post("/saveData/", async (req, res) => {
         (err, results) => {
           if (err) {
             console.error("Database error:", err);
-            return res
-              .status(500)
-              .json({
-                message: "Error checking variante_bono_id",
-                error: err.message,
-              });
+            return res.status(500).json({
+              message: "Error checking variante_bono_id",
+              error: err.message,
+            });
           }
 
           try {
@@ -482,12 +474,10 @@ app.post("/saveData/", async (req, res) => {
             pool.getConnection((err, connection) => {
               if (err) {
                 console.error("Transaction error:", err);
-                return res
-                  .status(500)
-                  .json({
-                    message: "Error al iniciar la transacción",
-                    error: err.message,
-                  });
+                return res.status(500).json({
+                  message: "Error al iniciar la transacción",
+                  error: err.message,
+                });
               }
 
               // Begin transaction
@@ -495,12 +485,10 @@ app.post("/saveData/", async (req, res) => {
                 if (err) {
                   connection.release();
                   console.error("Transaction error:", err);
-                  return res
-                    .status(500)
-                    .json({
-                      message: "Error al iniciar la transacción",
-                      error: err.message,
-                    });
+                  return res.status(500).json({
+                    message: "Error al iniciar la transacción",
+                    error: err.message,
+                  });
                 }
 
                 // Insert propietario
@@ -519,12 +507,10 @@ app.post("/saveData/", async (req, res) => {
                       return connection.rollback(() => {
                         connection.release();
                         console.error("Propietario insertion error:", err);
-                        res
-                          .status(500)
-                          .json({
-                            message: "Error al insertar propietario",
-                            error: err.message,
-                          });
+                        res.status(500).json({
+                          message: "Error al insertar propietario",
+                          error: err.message,
+                        });
                       });
                     }
 
@@ -547,12 +533,10 @@ app.post("/saveData/", async (req, res) => {
                           return connection.rollback(() => {
                             connection.release();
                             console.error("Lote insertion error:", err);
-                            res
-                              .status(500)
-                              .json({
-                                message: "Error al insertar lote",
-                                error: err.message,
-                              });
+                            res.status(500).json({
+                              message: "Error al insertar lote",
+                              error: err.message,
+                            });
                           });
                         }
 
@@ -611,12 +595,10 @@ app.post("/saveData/", async (req, res) => {
                               return connection.rollback(() => {
                                 connection.release();
                                 console.error("Proyecto insertion error:", err);
-                                res
-                                  .status(500)
-                                  .json({
-                                    message: "Error al insertar proyecto",
-                                    error: err.message,
-                                  });
+                                res.status(500).json({
+                                  message: "Error al insertar proyecto",
+                                  error: err.message,
+                                });
                               });
                             }
 
@@ -652,13 +634,11 @@ app.post("/saveData/", async (req, res) => {
                                       "Family members insertion error:",
                                       err,
                                     );
-                                    res
-                                      .status(500)
-                                      .json({
-                                        message:
-                                          "Error al insertar miembros de la familia",
-                                        error: err.message,
-                                      });
+                                    res.status(500).json({
+                                      message:
+                                        "Error al insertar miembros de la familia",
+                                      error: err.message,
+                                    });
                                   });
                                 }
 
@@ -668,13 +648,11 @@ app.post("/saveData/", async (req, res) => {
                                     return connection.rollback(() => {
                                       connection.release();
                                       console.error("Commit error:", err);
-                                      res
-                                        .status(500)
-                                        .json({
-                                          message:
-                                            "Error al finalizar la transacción",
-                                          error: err.message,
-                                        });
+                                      res.status(500).json({
+                                        message:
+                                          "Error al finalizar la transacción",
+                                        error: err.message,
+                                      });
                                     });
                                   }
 
@@ -707,13 +685,11 @@ app.post("/saveData/", async (req, res) => {
         console.log(err);
         return res.json(err);
       }
-      return res
-        .status(200)
-        .json({
-          message: "Proyecto guardado exitosamente",
-          ok: true,
-          results: results[0],
-        });
+      return res.status(200).json({
+        message: "Proyecto guardado exitosamente",
+        ok: true,
+        results: results[0],
+      });
     });
   } catch (error) {
     return res
@@ -916,12 +892,10 @@ app.post("/updateData/", (req, res) => {
       member.tipoMiembro == "jefe/a de familia",
   );
   if (!hasHeadOfHousehold) {
-    return res
-      .status(400)
-      .json({
-        message:
-          "Debe haber al menos un miembro de familia que sea jefe/a de hogar",
-      });
+    return res.status(400).json({
+      message:
+        "Debe haber al menos un miembro de familia que sea jefe/a de hogar",
+    });
   }
 
   var newSubtipoSeleccionado = projectData.subtipoSeleccionado;
@@ -937,12 +911,10 @@ app.post("/updateData/", (req, res) => {
     (err, results) => {
       if (err) {
         console.error("Database error:", err);
-        return res
-          .status(500)
-          .json({
-            message: "Error checking variante_bono_id",
-            error: err.message,
-          });
+        return res.status(500).json({
+          message: "Error checking variante_bono_id",
+          error: err.message,
+        });
       }
 
       try {
@@ -950,12 +922,10 @@ app.post("/updateData/", (req, res) => {
         pool.getConnection((err, connection) => {
           if (err) {
             console.error("Transaction error:", err);
-            return res
-              .status(500)
-              .json({
-                message: "Error al iniciar la transacción",
-                error: err.message,
-              });
+            return res.status(500).json({
+              message: "Error al iniciar la transacción",
+              error: err.message,
+            });
           }
 
           // Begin transaction
@@ -963,12 +933,10 @@ app.post("/updateData/", (req, res) => {
             if (err) {
               connection.release();
               console.error("Transaction error:", err);
-              return res
-                .status(500)
-                .json({
-                  message: "Error al iniciar la transacción",
-                  error: err.message,
-                });
+              return res.status(500).json({
+                message: "Error al iniciar la transacción",
+                error: err.message,
+              });
             }
 
             // Update propietario
@@ -984,12 +952,10 @@ app.post("/updateData/", (req, res) => {
                   return connection.rollback(() => {
                     connection.release();
                     console.error("Propietario insertion error:", err);
-                    return res
-                      .status(500)
-                      .json({
-                        message: "Error al insertar propietario",
-                        error: err.message,
-                      });
+                    return res.status(500).json({
+                      message: "Error al insertar propietario",
+                      error: err.message,
+                    });
                   });
                 }
 
@@ -1010,12 +976,10 @@ app.post("/updateData/", (req, res) => {
                       return connection.rollback(() => {
                         connection.release();
                         console.error("Lote insertion error:", err);
-                        res
-                          .status(500)
-                          .json({
-                            message: "Error al insertar lote",
-                            error: err.message,
-                          });
+                        res.status(500).json({
+                          message: "Error al insertar lote",
+                          error: err.message,
+                        });
                       });
                     }
 
@@ -1076,12 +1040,10 @@ app.post("/updateData/", (req, res) => {
                           return connection.rollback(() => {
                             connection.release();
                             console.error("Proyecto insertion error:", err);
-                            return res
-                              .status(500)
-                              .json({
-                                message: "Error al insertar proyecto",
-                                error: err.message,
-                              });
+                            return res.status(500).json({
+                              message: "Error al insertar proyecto",
+                              error: err.message,
+                            });
                           });
                         }
 
@@ -1124,13 +1086,11 @@ app.post("/updateData/", (req, res) => {
                                       "Family members insertion error:",
                                       err,
                                     );
-                                    return res
-                                      .status(500)
-                                      .json({
-                                        message:
-                                          "Error al insertar miembros de la familia",
-                                        error: err.message,
-                                      });
+                                    return res.status(500).json({
+                                      message:
+                                        "Error al insertar miembros de la familia",
+                                      error: err.message,
+                                    });
                                   });
                                 }
                               },
@@ -1171,13 +1131,11 @@ app.post("/updateData/", (req, res) => {
                                       "Family members insertion error:",
                                       err,
                                     );
-                                    return res
-                                      .status(500)
-                                      .json({
-                                        message:
-                                          "Error al insertar miembros de la familia",
-                                        error: err.message,
-                                      });
+                                    return res.status(500).json({
+                                      message:
+                                        "Error al insertar miembros de la familia",
+                                      error: err.message,
+                                    });
                                   });
                                 }
                               },
@@ -1197,13 +1155,11 @@ app.post("/updateData/", (req, res) => {
                                     "Family members insertion error:",
                                     err,
                                   );
-                                  res
-                                    .status(500)
-                                    .json({
-                                      message:
-                                        "Error al insertar miembros de la familia",
-                                      error: err.message,
-                                    });
+                                  res.status(500).json({
+                                    message:
+                                      "Error al insertar miembros de la familia",
+                                    error: err.message,
+                                  });
                                 });
                               }
                             },
@@ -1215,21 +1171,17 @@ app.post("/updateData/", (req, res) => {
                             return connection.rollback(() => {
                               connection.release();
                               console.error("Commit error:", err);
-                              res
-                                .status(500)
-                                .json({
-                                  message: "Error al finalizar la transacción",
-                                  error: err.message,
-                                });
+                              res.status(500).json({
+                                message: "Error al finalizar la transacción",
+                                error: err.message,
+                              });
                             });
                           }
                           connection.release();
                           console.log("Proyecto guardado exitosamente");
-                          res
-                            .status(200)
-                            .json({
-                              message: "Proyecto guardado exitosamente",
-                            });
+                          res.status(200).json({
+                            message: "Proyecto guardado exitosamente",
+                          });
                         });
                       },
                     );
