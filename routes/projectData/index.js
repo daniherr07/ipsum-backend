@@ -7,6 +7,7 @@ const families = require("../../lib/select/selectFamilies");
 const locations = require("../../lib/select/selectLocations");
 const admins = require("../../lib/select/selectAdmin");
 const people = require("../../lib/select/selectPeople");
+const stages = require("../../lib/select/selectStages");
 
 router.get("/:projectID", async (req, res) => {
   const { projectID } = req.params;
@@ -36,6 +37,7 @@ router.get("/:projectID", async (req, res) => {
   const adminsData = await admins(projectID);
   const peopleData = await people(projectID);
 
+  const stagesData = await stages(projectID);
   return res
     .status(200)
     .json({
@@ -46,6 +48,7 @@ router.get("/:projectID", async (req, res) => {
       locationsData,
       adminsData,
       peopleData,
+      stagesData
     });
 });
 

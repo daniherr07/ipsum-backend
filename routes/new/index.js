@@ -64,7 +64,7 @@ async function intializeProject(projectId) {
       proyecto_id: projectId,
     })
     .catch((err) => {
-      console.err(err);
+      console.error(err);
       throw new Error("Couldn't initialize basics");
     });
 
@@ -91,7 +91,7 @@ async function intializeProject(projectId) {
       proyecto_id: projectId,
     })
     .catch((err) => {
-      console.err(err);
+      console.error(err);
       throw new Error("Couldn't initialize basics");
     });
 }

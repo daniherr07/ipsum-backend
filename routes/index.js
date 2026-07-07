@@ -17,7 +17,17 @@ router.use("/insertAdmins", require("./insertAdmins"));
 router.use("/insertPeople", require("./insertPeople"));
 
 router.use("/generics", require("./generics"));
+router.use("/updateGenerics", require("./updateGenerics"));
 
 router.use("/selectUsers", require("./selectUsers"));
 router.use("/updateUsers", require("./updateUsers"));
+
+router.use("/changeStage", require("./changeStage"));
+
+router.use("/addBitacora", require("./addBitacora"));
+router.use("/getBitacora", require("./getBitacora"));
+
+router.use("/addProjectPhoto", require("./addProjectPhoto"));
+router.use("/projectImages", require("./projectImages"));
 module.exports = router;
+

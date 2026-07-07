@@ -6,7 +6,7 @@ router.get("/", async (req, res) => {
   const projectsId = await db
     .select("proyectos_new", {
       values: "id",
-      where: "",
+      where: "1 = 1 order by id desc",
       params: [],
     })
     .catch((err) => {
@@ -34,6 +34,8 @@ router.get("/", async (req, res) => {
 
     projects.push(projectItem[0][0]);
   }
+
+  
 
   return res.status(200).json(projects);
 });
