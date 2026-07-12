@@ -10,11 +10,20 @@ router.get("/:userId", async (req, res) => {
   }
 
   const [notifications, unreadRows] = await Promise.all([
-    db.select("notificaciones", {
-      values: "*",
-      where: "usuario_id = ? order by created_at desc limit 50",
-      params: [userId],
-    }),
+    // join con proyectos_new/usuarios para mostrar en la campanita a qué
+    // proyecto pertenece y quién la mandó (remitente_usuario_id es NULL en
+    // las automáticas de cambio de etapa/proyecto nuevo, de ahí los LEFT JOIN).
+    db.query(
+      `select n.*, p.nombre as proyecto_nombre,
+        CONCAT(u.nombre, ' ', u.apellido1) as remitente_nombre
+       from notificaciones n
+       left join proyectos_new p on p.id = n.proyecto_id
+       left join usuarios u on u.id = n.remitente_usuario_id
+       where n.usuario_id = ?
+       order by n.created_at desc
+       limit 50`,
+      [userId],
+    ),
     db.select("notificaciones", {
       values: "count(*) as count",
       where: "usuario_id = ? and leido = 0",

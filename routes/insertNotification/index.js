@@ -26,6 +26,7 @@ router.post("/", async (req, res) => {
     proyecto_id,
     remitente_usuario_id,
     destinatario_usuario_id,
+    asunto,
     mensaje,
   } = req.body;
 
@@ -33,6 +34,7 @@ router.post("/", async (req, res) => {
     !proyecto_id ||
     !remitente_usuario_id ||
     !destinatario_usuario_id ||
+    !asunto ||
     !mensaje
   ) {
     return res
@@ -79,7 +81,9 @@ router.post("/", async (req, res) => {
       usuario_id: destinatario_usuario_id,
       proyecto_id,
       tipo: "manual",
-      titulo: `Mensaje de ${remitenteNombre}`,
+      // El asunto que escribe quien envía es el título real (antes era
+      // siempre "Mensaje de {remitente}", sin decir de qué se trataba).
+      titulo: asunto,
       mensaje,
       remitente_usuario_id,
     })
@@ -91,16 +95,18 @@ router.post("/", async (req, res) => {
   // El correo es best-effort, igual que en changeStage/new: si Gmail falla
   // no debe tumbar la respuesta, la notificación ya quedó guardada in-app.
   try {
+    const safeAsunto = escapeHtml(asunto);
     const safeMessage = escapeHtml(mensaje).replace(/\n/g, "<br>");
 
     await sendEmail({
       to: destinatario.correo_electronico,
-      subject: `${proyectoNombre}: mensaje de ${remitenteNombre}`,
+      subject: `${proyectoNombre}: ${asunto}`,
       html: buildEmailHtml({
         heading: "Notificación manual",
         bodyHtml: `
           ${highlightBox("Proyecto", proyectoNombre)}
           ${highlightBox("De", remitenteNombre)}
+          ${highlightBox("Asunto", safeAsunto)}
           <p style="margin-top: 16px;">${safeMessage}</p>
         `,
       }),

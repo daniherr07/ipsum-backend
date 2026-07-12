@@ -29,6 +29,7 @@ router.use("/insertUser", require("./insertUser"));
 router.use("/deleteUser", require("./deleteUser"));
 
 router.use("/changeStage", require("./changeStage"));
+router.use("/stageNotificationRoles", require("./stageNotificationRoles"));
 
 router.use("/addBitacora", require("./addBitacora"));
 router.use("/getBitacora", require("./getBitacora"));
@@ -42,9 +43,12 @@ router.use("/locationImages", require("./locationImages"));
 router.use("/deleteLocationImage", require("./deleteLocationImage"));
 
 router.use("/notifications", require("./notifications"));
+router.use("/allNotifications", require("./allNotifications"));
 router.use("/insertNotification", require("./insertNotification"));
 router.use("/markNotificationRead", require("./markNotificationRead"));
 router.use("/markAllNotificationsRead", require("./markAllNotificationsRead"));
+router.use("/deleteNotification", require("./deleteNotification"));
+router.use("/deleteAllNotifications", require("./deleteAllNotifications"));
 
 module.exports = router;
 
