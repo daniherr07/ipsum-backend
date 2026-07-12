@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../../lib/db");
+const cache = require("../../lib/cache");
 
 router.post("/", async (req, res) => {
   if (!req.body) {
@@ -13,6 +14,10 @@ router.post("/", async (req, res) => {
 
   const { locationForm, proyecto_id } = req.body;
 
+  if (!locationForm || typeof locationForm !== "object") {
+    return res.status(400).json({ msg: "Faltan los datos de ubicación del proyecto" });
+  }
+
   const locationsUpdate = await db
     .update("proyectos_locations", locationForm, "proyecto_id = ?", [
       proyecto_id,
@@ -24,6 +29,9 @@ router.post("/", async (req, res) => {
       });
       throw new Error(`No se pudo actualizar la información de locación` + err);
     });
+
+  // provincia/cantón/distrito se muestran en el listado de /allProjects.
+  cache.delete("allProjects");
 
   return res.status(200).json(locationsUpdate);
 });

@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../../lib/db");
+const cache = require("../../lib/cache");
 
 router.post("/", async (req, res) => {
   if (!req.body) {
@@ -12,6 +13,11 @@ router.post("/", async (req, res) => {
   }
 
   const { adminForm, proyecto_id } = req.body;
+
+  if (!adminForm || typeof adminForm !== "object") {
+    return res.status(400).json({ msg: "Faltan los datos administrativos del proyecto" });
+  }
+
   const ids = ["entidad_id", "centro_negocio_id", "analista_entidad_id"];
 
   ids.forEach((key) => {
@@ -32,6 +38,9 @@ router.post("/", async (req, res) => {
         `No se pudo actualizar la información administrativa` + err,
       );
     });
+
+  // entidad/centro de negocios se muestran en el listado de /allProjects.
+  cache.delete("allProjects");
 
   return res.status(200).json(adminUpdate);
 });

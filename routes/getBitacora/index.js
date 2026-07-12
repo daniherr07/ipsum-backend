@@ -11,7 +11,7 @@ router.get("/:projectId", async (req, res) => {
   }
 
   const bitacoraEntries = await db
-    .query(`call getNotes(${projectId})`)
+    .query("call getNotes(?)", [projectId])
     .catch((err) => {
       res.status(400).json({
         msg: "No se pudo conseguir la información de las Notas",

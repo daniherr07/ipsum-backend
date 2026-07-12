@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../../lib/db");
+const cache = require("../../lib/cache");
 
 router.post("/", async (req, res) => {
   if (!req.body) {
@@ -33,6 +34,9 @@ router.post("/", async (req, res) => {
       });
       throw new Error(`No se pudo actualizar la información del usuario` + err);
     });
+
+  cache.delete("selectUsers");
+  cache.delete("formValues");
 
   return res.status(200).json(userUpdate);
 });

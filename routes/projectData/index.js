@@ -18,38 +18,45 @@ router.get("/:projectID", async (req, res) => {
     throw new Error("Petición Inválida: Sin Cuerpo");
   }
 
-  const projectName = await db
-    .select("proyectos_new", {
-      values: "nombre, slug",
-      where: "id = ?",
-      params: [projectID],
-    })
-    .catch((err) => {
-      res
-        .status(400)
-        .json({ msg: "No se pudo conseguir la información del proyecto" });
-      throw new Error("No se pudo conseguir la información del proyecto", err);
-    });
+  // Las 7 consultas leen tablas distintas del mismo proyecto y no dependen
+  // entre sí, así que se disparan en paralelo en vez de una tras otra
+  // (antes eran 7 idas y vueltas secuenciales a la base de datos por cada
+  // carga del editor de proyecto).
+  const [projectName, basicsData, familiesData, locationsData, adminsData, peopleData, stagesData] =
+    await Promise.all([
+      db
+        .select("proyectos_new", {
+          values: "nombre, slug",
+          where: "id = ?",
+          params: [projectID],
+        })
+        .catch((err) => {
+          res.status(400).json({
+            msg: "No se pudo conseguir la información del proyecto",
+          });
+          throw new Error(
+            "No se pudo conseguir la información del proyecto",
+            err,
+          );
+        }),
+      basics(projectID),
+      families(projectID),
+      locations(projectID),
+      admins(projectID),
+      people(projectID),
+      stages(projectID),
+    ]);
 
-  const basicsData = await basics(projectID);
-  const familiesData = await families(projectID);
-  const locationsData = await locations(projectID);
-  const adminsData = await admins(projectID);
-  const peopleData = await people(projectID);
-
-  const stagesData = await stages(projectID);
-  return res
-    .status(200)
-    .json({
-      projectName: projectName[0],
-      projectSlug: projectName[0],
-      basicsData,
-      familiesData,
-      locationsData,
-      adminsData,
-      peopleData,
-      stagesData
-    });
+  return res.status(200).json({
+    projectName: projectName[0],
+    projectSlug: projectName[0].slug,
+    basicsData,
+    familiesData,
+    locationsData,
+    adminsData,
+    peopleData,
+    stagesData,
+  });
 });
 
 module.exports = router;

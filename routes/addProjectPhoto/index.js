@@ -10,8 +10,6 @@ const upload = multer({ storage });
 
 router.post("/", upload.array("files"), async (req, res) => {
   try {
-
-    console.log("entro aqui")
     const formData = req.body;
     const files = req.files;
 
@@ -21,32 +19,36 @@ router.post("/", upload.array("files"), async (req, res) => {
       });
     }
 
-    console.log("entro aqui 2");
-
-    // 🔥 Subir todos los archivos en paralelo
-    const uploadedFiles = await Promise.all(
+    // allSettled en vez de all: si un archivo falla al subir a Dropbox, los
+    // demás igual se guardan en vez de que uno solo tumbe el lote completo
+    // (antes, un fallo a mitad de lote dejaba archivos ya subidos a Dropbox
+    // huérfanos, sin fila en la BD y sin forma de saberlo desde la respuesta).
+    const uploadResults = await Promise.allSettled(
       files.map((file) =>
         addFileDropbox(file, "project_photo", formData.path, "overview"),
       ),
     );
 
-    console.log("entro aqui 3");
+    const uploadedFiles = uploadResults
+      .filter((result) => result.status === "fulfilled")
+      .map((result) => result.value);
+    const failedCount = uploadResults.length - uploadedFiles.length;
 
-    // 🔥 Preparar inserts para la DB
-    const inserts = uploadedFiles.map((fileData) =>
-      db.insert("proyectos_photos", {
-        proyecto_id: formData.proyecto_id,
-        img_link: fileData.url,
-        img_route: fileData.path,
-      }),
+    const result = await Promise.all(
+      uploadedFiles.map((fileData) =>
+        db.insert("proyectos_photos", {
+          proyecto_id: formData.proyecto_id,
+          img_link: fileData.url,
+          img_route: fileData.path,
+        }),
+      ),
     );
 
-    console.log("entro aqui 4");
-
-    const result = await Promise.all(inserts);
-
-    return res.status(200).json({
-      message: "Archivos subidos correctamente",
+    return res.status(failedCount > 0 ? 207 : 200).json({
+      message:
+        failedCount > 0
+          ? `${uploadedFiles.length} archivo(s) subidos, ${failedCount} fallaron`
+          : "Archivos subidos correctamente",
       files: result,
     });
   } catch (error) {

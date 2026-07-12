@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../../lib/db");
+const cache = require("../../lib/cache");
 
 router.post("/", async (req, res) => {
   if (!req.body) {
@@ -12,6 +13,11 @@ router.post("/", async (req, res) => {
   }
 
   const { peopleForm, proyecto_id } = req.body;
+
+  if (!peopleForm || typeof peopleForm !== "object") {
+    return res.status(400).json({ msg: "Faltan los datos de encargados del proyecto" });
+  }
+
   const ids = [
     "constructor_id",
     "arquitecto_id",
@@ -37,6 +43,10 @@ router.post("/", async (req, res) => {
       });
       throw new Error(`No se pudo actualizar la información basica` + err);
     });
+
+  // constructor/arquitecto/promotor/analista/ingeniero/fiscal se muestran
+  // en el listado de /allProjects.
+  cache.delete("allProjects");
 
   return res.status(200).json(peopleUpdate);
 });

@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../../lib/db");
+const cache = require("../../lib/cache");
 
 router.post("/", async (req, res) => {
   if (!req.body) {
@@ -12,6 +13,11 @@ router.post("/", async (req, res) => {
   }
 
   const {basicsForm, proyecto_id} = req.body;
+
+  if (!basicsForm || typeof basicsForm !== "object") {
+    return res.status(400).json({ msg: "Faltan los datos básicos del proyecto" });
+  }
+
   basicsForm.fis = basicsForm.fis ? 1 : 0;
   basicsForm.grupo_id = parseInt(basicsForm.grupo_id)
   basicsForm.bono_id = parseInt(basicsForm.bono_id)
@@ -27,6 +33,9 @@ router.post("/", async (req, res) => {
       });
       throw new Error(`No se pudo actualizar la información basica` + err);
     });
+
+  // bono/variante/grupo se muestran en el listado de /allProjects.
+  cache.delete("allProjects");
 
   return res.status(200).json(basicsUpdate);
 });
