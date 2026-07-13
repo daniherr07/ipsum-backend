@@ -28,9 +28,19 @@ app.use("/", require("./routes"));
  * adelante en el stack que el punto donde ocurrió — antes vivía arriba de
  * las rutas y por eso nunca se ejecutaba para ningún throw/rechazo dentro
  * de un route handler. */
-// eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   console.error(err.stack);
+  // Casi todas las rutas siguen el patrón res.status(400).json({msg...})
+  // seguido de throw (para reportar su propio error Y cortar la ejecución
+  // con el error real, ver CLAUDE.md) — eso significa que cuando ESTE
+  // middleware recibe el error, la respuesta original YA se mandó. Sin este
+  // chequeo, intentar mandar una segunda respuesta explotaba con
+  // "Cannot set headers after they are sent to the client" en cualquier
+  // ruta que tomara ese camino (ej. crear una entidad con un nombre
+  // duplicado), tumbando el proceso en vez de solo registrar el error.
+  if (res.headersSent) {
+    return next(err);
+  }
   res.status(500).json({ error: "Internal server error" });
 });
 

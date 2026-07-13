@@ -27,10 +27,14 @@ router.post("/", async (req, res) => {
   const genericInsert = await db
     .insert(table, formData)
     .catch((err) => {
-      res.status(400).json({
-        msg: "No se pudo crear el registro genérico",
-        error: err,
-      });
+      // ER_DUP_ENTRY: alguna columna de esta tabla tiene una restricción de
+      // valor único (ej. entidades.nombre) y ya existe un registro con ese
+      // mismo valor. Mensaje claro en vez del error crudo de MySQL.
+      const msg =
+        err.code === "ER_DUP_ENTRY"
+          ? "Ya existe un registro con ese mismo nombre/valor"
+          : "No se pudo crear el registro genérico";
+      res.status(400).json({ msg, error: err });
       throw new Error("No se pudo crear el registro genérico", err);
     });
 

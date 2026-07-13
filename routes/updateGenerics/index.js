@@ -28,10 +28,13 @@ router.post("/", async (req, res) => {
   const genericUpdate = await db
     .update(table, formData, "id = ?", [id])
     .catch((err) => {
-      res.status(400).json({
-        msg: `No se pudo actualizar la información genérica`,
-        error: err,
-      });
+      // ER_DUP_ENTRY: se intentó dejar esta fila con el mismo valor único
+      // (ej. nombre) que otra ya existente en la tabla.
+      const msg =
+        err.code === "ER_DUP_ENTRY"
+          ? "Ya existe un registro con ese mismo nombre/valor"
+          : "No se pudo actualizar la información genérica";
+      res.status(400).json({ msg, error: err });
       throw new Error(`No se pudo actualizar la información genérica` + err);
     });
 

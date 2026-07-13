@@ -28,10 +28,11 @@ router.post("/", async (req, res) => {
       [formData.id],
     )
     .catch((err) => {
-      res.status(400).json({
-        msg: `No se pudo actualizar la información del usuario`,
-        error: err,
-      });
+      const msg =
+        err.code === "ER_DUP_ENTRY"
+          ? "Ya existe un usuario con ese correo electrónico"
+          : "No se pudo actualizar la información del usuario";
+      res.status(400).json({ msg, error: err });
       throw new Error(`No se pudo actualizar la información del usuario` + err);
     });
 
