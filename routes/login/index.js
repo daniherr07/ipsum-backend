@@ -13,6 +13,11 @@ const loginRateLimit = rateLimit({
 });
 
 router.post("/", loginRateLimit, async (req, res) => {
+  // DEBUG temporal: confirma que la petición llega al backend en absoluto
+  // (si esto nunca aparece en los logs de Vercel, el problema es de red/DNS/
+  // URL mal armada del lado del frontend, no del backend).
+  console.log("[POST /login] petición recibida, body:", req.body ? Object.keys(req.body) : req.body);
+
   if (!req.body) {
     console.log(req.body);
     res
@@ -22,16 +27,27 @@ router.post("/", loginRateLimit, async (req, res) => {
   }
 
   const { email, password } = req.body;
+  console.log("[POST /login] email recibido:", email);
 
   // Solo correo electrónico, no nombre de usuario (antes se aceptaban
   // ambos con "nombre = ? or correo_electronico = ?"). activated = 1
   // excluye usuarios "eliminados" (ver routes/deleteUser, borrado lógico) —
   // sin este filtro, un usuario eliminado podía seguir iniciando sesión.
-  const userSelect = await db.select("usuarios", {
-    values: "*",
-    where: "correo_electronico = ? and activated = 1",
-    params: [email],
-  });
+  let userSelect;
+  try {
+    userSelect = await db.select("usuarios", {
+      values: "*",
+      where: "correo_electronico = ? and activated = 1",
+      params: [email],
+    });
+  } catch (error) {
+    // Si esto es lo que aparece en los logs, el problema es de conexión a
+    // la base de datos (credenciales/firewall/host), no del login en sí.
+    console.error("[POST /login] error consultando la base de datos:", error);
+    return res.status(500).json({ msg: "No se pudo conectar con la base de datos" });
+  }
+
+  console.log("[POST /login] usuarios encontrados:", userSelect.length);
 
   if (!userSelect || userSelect.length == 0) {
     return res.status(400).json({ msg: "Usuario o contraseña incorrectos" });
@@ -46,6 +62,8 @@ router.post("/", loginRateLimit, async (req, res) => {
     console.error("Error comparando contraseñas", error);
     return res.status(500).json({ msg: "No se pudo validar el usuario" });
   }
+
+  console.log("[POST /login] contraseña coincide:", isMatch);
 
   if (!isMatch) {
     return res.status(400).json({ msg: "Usuario o contraseña incorrectos" });
