@@ -80,6 +80,7 @@ router.post("/", async (req, res) => {
           tipo: "cambio_etapa",
           titulo: `Cambio de etapa: ${projectName}`,
           mensaje: `El proyecto avanzó a la etapa "${etapaName}".`,
+          remitente_usuario_id: formData.remitente_usuario_id ?? null,
         })),
       ),
     ]);

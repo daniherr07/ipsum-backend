@@ -22,7 +22,7 @@ router.post("/", async (req, res) => {
     throw new Error("Petición Inválida: Sin Cuerpo");
   }
 
-  const { projectName } = req.body;
+  const { projectName, creatorUserId } = req.body;
 
   const date = new Date();
 
@@ -63,12 +63,12 @@ router.post("/", async (req, res) => {
       cache.delete("allProjects");
       // Sin await, igual que intializeProject/createProjectFolders arriba:
       // no debe demorar la respuesta al usuario.
-      notifyNewProject(response.insertId, projectName);
+      notifyNewProject(response.insertId, projectName, creatorUserId);
       return res.status(200).json({ projectId: response.insertId });
     });
 });
 
-async function notifyNewProject(projectId, projectName) {
+async function notifyNewProject(projectId, projectName, creatorUserId) {
   try {
     const [magdaRows, adminUsers] = await Promise.all([
       db.select("usuarios", {
@@ -103,6 +103,7 @@ async function notifyNewProject(projectId, projectName) {
           tipo: "proyecto_creado",
           titulo: "Nuevo proyecto",
           mensaje: `Se creó el proyecto "${projectName}".`,
+          remitente_usuario_id: creatorUserId ?? null,
         })),
       ),
     ]);
