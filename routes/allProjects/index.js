@@ -33,6 +33,9 @@ const ALL_PROJECTS_QUERY = `
     CONCAT(an.nombre, ' ', an.apellido1) as analista,
     CONCAT(ing.nombre, ' ', ing.apellido1) as ingeniero,
     CONCAT(fis.nombre, ' ', fis.apellido1) as fiscal,
+    pe.arquitecto_id as arquitecto_id,
+    pe.analista_id as analista_id,
+    pe.ingeniero_id as ingeniero_id,
     st.etapa_id as etapa_id
   from proyectos_new p
   left join proyectos_basics b on b.proyecto_id = p.id
