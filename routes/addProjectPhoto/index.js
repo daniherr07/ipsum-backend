@@ -12,8 +12,14 @@ router.post("/", upload.array("files"), async (req, res) => {
   try {
     const formData = req.body;
     const files = req.files;
+    console.log(
+      `[POST /addProjectPhoto] subiendo ${files ? files.length : 0} archivo(s) de proyecto (proyecto ${formData.proyecto_id})`,
+    );
 
     if (!files || files.length === 0) {
+      console.warn(
+        `[POST /addProjectPhoto] petición sin archivos (proyecto ${formData.proyecto_id})`,
+      );
       return res.status(400).json({
         message: "No se enviaron archivos",
       });
@@ -44,6 +50,16 @@ router.post("/", upload.array("files"), async (req, res) => {
       ),
     );
 
+    if (failedCount > 0) {
+      console.warn(
+        `[POST /addProjectPhoto] ${failedCount} de ${uploadResults.length} archivo(s) fallaron al subir (proyecto ${formData.proyecto_id})`,
+      );
+    } else {
+      console.log(
+        `[POST /addProjectPhoto] ${uploadedFiles.length} archivo(s) guardados correctamente (proyecto ${formData.proyecto_id})`,
+      );
+    }
+
     return res.status(failedCount > 0 ? 207 : 200).json({
       message:
         failedCount > 0
@@ -52,7 +68,10 @@ router.post("/", upload.array("files"), async (req, res) => {
       files: result,
     });
   } catch (error) {
-    console.error("Error subiendo archivos:", error);
+    console.error(
+      `[POST /addProjectPhoto] error inesperado subiendo archivos (proyecto ${req.body?.proyecto_id})`,
+      error,
+    );
 
     return res.status(500).json({
       message: "Error al subir archivos",

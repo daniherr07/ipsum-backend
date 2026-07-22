@@ -24,6 +24,7 @@ router.post("/", forgotPasswordRateLimit, async (req, res) => {
   }
 
   const { email } = req.body;
+  console.log(`[POST /forgotPassword] solicitud recibida para: ${email}`);
 
   if (!email) {
     return res.status(400).json({ msg: "Debe indicar un correo o usuario" });
@@ -36,11 +37,13 @@ router.post("/", forgotPasswordRateLimit, async (req, res) => {
       params: [email, email],
     })
     .catch((err) => {
+      console.error(`[POST /forgotPassword] error buscando usuario "${email}"`, err);
       res.status(400).json({ msg: "No se pudo buscar el usuario", error: err });
       throw new Error("No se pudo buscar el usuario", err);
     });
 
   if (!userSelect || userSelect.length === 0) {
+    console.warn(`[POST /forgotPassword] no existe usuario para "${email}"`);
     // 200 (no 400): no revela si el correo/usuario existe o no en el
     // sistema; el frontend distingue este caso vía el campo noUser.
     return res.status(200).json({ noUser: true });
@@ -70,7 +73,8 @@ router.post("/", forgotPasswordRateLimit, async (req, res) => {
       }),
     });
   } catch (error) {
-    console.error("Error enviando correo de recuperación de contraseña", error);
+    // No loguear newPassword acá ni en ningún otro log de esta ruta.
+    console.error(`[POST /forgotPassword] error enviando correo (usuario ${user.id})`, error);
     return res.status(500).json({ msg: "No se pudo enviar el correo" });
   }
 
@@ -87,12 +91,15 @@ router.post("/", forgotPasswordRateLimit, async (req, res) => {
       [user.id],
     )
     .catch((err) => {
+      console.error(`[POST /forgotPassword] correo enviado pero no se pudo guardar la contraseña nueva (usuario ${user.id}) — el usuario recibió una contraseña que NO quedó activa`, err);
       res.status(400).json({
         msg: "No se pudo actualizar la contraseña",
         error: err,
       });
       throw new Error("No se pudo actualizar la contraseña", err);
     });
+
+  console.log(`[POST /forgotPassword] contraseña temporal enviada y guardada (usuario ${user.id})`);
 
   return res.status(200).json({ ok: true });
 });

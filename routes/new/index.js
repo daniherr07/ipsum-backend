@@ -23,6 +23,9 @@ router.post("/", async (req, res) => {
   }
 
   const { projectName, creatorUserId } = req.body;
+  console.log(
+    `[POST /new] creando proyecto "${projectName}" (creador: ${creatorUserId ?? "desconocido"})`,
+  );
 
   const date = new Date();
 
@@ -54,17 +57,46 @@ router.post("/", async (req, res) => {
       throw new Error("Error al intentar insertar", err);
     })
     .then((response) => {
-      intializeProject(response.insertId);
+      const projectId = response.insertId;
+      console.log(
+        `[POST /new] fila creada en proyectos_new (id ${projectId}), inicializando tablas relacionadas...`,
+      );
+
+      // intializeProject/createProjectFolders/notifyNewProject corren sin
+      // await (no deben demorar la respuesta al usuario), PERO deben tener
+      // su propio .catch(): antes no lo tenían, así que si algo adentro
+      // fallaba (ej. un insert que rechaza), quedaba como una promesa
+      // rechazada sin atrapar en ningún lado ("unhandled rejection"). Node
+      // mata el proceso completo por eso — no solo esta solicitud (que para
+      // colmo ya recibió su 200 OK), sino TODAS las conexiones activas de
+      // cualquier usuario en ese momento.
+      intializeProject(projectId).catch((err) => {
+        console.error(
+          `[POST /new] no se pudo inicializar el proyecto ${projectId} (quedó revertido, ver logs de intializeProject)`,
+          err,
+        );
+      });
       createProjectFolders(
         projectName.toLowerCase().trim().replace(/\s+/g, "_"),
-      );
+      ).catch((err) => {
+        console.error(
+          `[POST /new] no se pudieron crear las carpetas de Dropbox para el proyecto ${projectId}`,
+          err,
+        );
+      });
       // El proyecto nuevo debe aparecer en /allProjects de inmediato, no
       // hasta que expire el TTL del caché.
       cache.delete("allProjects");
-      // Sin await, igual que intializeProject/createProjectFolders arriba:
-      // no debe demorar la respuesta al usuario.
-      notifyNewProject(response.insertId, projectName, creatorUserId);
-      return res.status(200).json({ projectId: response.insertId });
+      // notifyNewProject ya tiene su propio try/catch interno (no rechaza),
+      // pero lo dejamos igual: si alguna vez cambia y empieza a rechazar,
+      // no debe tumbar el proceso en silencio.
+      notifyNewProject(projectId, projectName, creatorUserId).catch((err) => {
+        console.error(
+          `[POST /new] error inesperado notificando el proyecto nuevo ${projectId}`,
+          err,
+        );
+      });
+      return res.status(200).json({ projectId });
     });
 });
 
@@ -112,51 +144,60 @@ async function notifyNewProject(projectId, projectName, creatorUserId) {
   }
 }
 
+// Crea la fila inicial en cada una de las 5 tablas "compañeras" de un
+// proyecto (proyectos_basics/locations/people/admins/stages). No hay
+// soporte de transacciones SQL reales en lib/db.js (todo pasa por
+// pool.execute, sin BEGIN/COMMIT), así que si un insert falla a mitad de
+// camino, se revierte a mano borrando las tablas que sí se alcanzaron a
+// crear y el proyecto mismo — antes NO se revertía nada, así que un
+// proyecto podía quedar con, por ejemplo, proyectos_basics pero sin
+// proyectos_people, y como insertPeople hace un UPDATE (no INSERT) sobre
+// "proyecto_id = ?", esa sección del editor quedaba guardando en silencio
+// para siempre (0 filas afectadas, sin error) sin que nadie se enterara.
 async function intializeProject(projectId) {
-  await db
-    .insert("proyectos_basics", {
-      proyecto_id: projectId,
-    })
-    .catch((err) => {
-      console.error(err);
-      throw new Error("Couldn't initialize basics", err);
-    });
+  const tables = [
+    "proyectos_basics",
+    "proyectos_locations",
+    "proyectos_people",
+    "proyectos_admins",
+    "proyectos_stages",
+  ];
 
-  await db
-    .insert("proyectos_locations", {
-      proyecto_id: projectId,
-    })
-    .catch((err) => {
-      console.error(err);
-      throw new Error("Couldn't initialize basics");
-    });
+  const created = [];
+  try {
+    for (const table of tables) {
+      await db.insert(table, { proyecto_id: projectId });
+      created.push(table);
+    }
+    console.log(
+      `[intializeProject] proyecto ${projectId} inicializado correctamente (${created.join(", ")})`,
+    );
+  } catch (err) {
+    console.error(
+      `[intializeProject] falló creando "${tables[created.length]}" para el proyecto ${projectId}; revirtiendo las ${created.length} tabla(s) ya creada(s) (${created.join(", ") || "ninguna"}) y el proyecto en sí`,
+      err,
+    );
 
-  await db
-    .insert("proyectos_people", {
-      proyecto_id: projectId,
-    })
-    .catch((err) => {
-      console.err(err);
-      throw new Error("Couldn't initialize basics");
+    await Promise.all(
+      created.map((table) =>
+        db.delete(table, "proyecto_id = ?", [projectId]).catch((cleanupErr) => {
+          console.error(
+            `[intializeProject] no se pudo revertir ${table} del proyecto ${projectId} (puede quedar una fila huérfana, revisar a mano)`,
+            cleanupErr,
+          );
+        }),
+      ),
+    );
+    await db.delete("proyectos_new", "id = ?", [projectId]).catch((cleanupErr) => {
+      console.error(
+        `[intializeProject] no se pudo borrar el proyecto huérfano ${projectId} (revisar a mano en proyectos_new)`,
+        cleanupErr,
+      );
     });
+    cache.delete("allProjects");
 
-  await db
-    .insert("proyectos_admins", {
-      proyecto_id: projectId,
-    })
-    .catch((err) => {
-      console.err(err);
-      throw new Error("Couldn't initialize basics");
-    });
-
-  await db
-    .insert("proyectos_stages", {
-      proyecto_id: projectId,
-    })
-    .catch((err) => {
-      console.error(err);
-      throw new Error("Couldn't initialize basics");
-    });
+    throw err;
+  }
 }
 
 async function createFolder(path) {

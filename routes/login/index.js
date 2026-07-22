@@ -13,9 +13,12 @@ const loginRateLimit = rateLimit({
 });
 
 router.post("/", loginRateLimit, async (req, res) => {
-  // DEBUG temporal: confirma que la petición llega al backend en absoluto
-  // (si esto nunca aparece en los logs de Vercel, el problema es de red/DNS/
-  // URL mal armada del lado del frontend, no del backend).
+  // Log de diagnóstico permanente (no solo para depurar un incidente
+  // puntual): en Vercel no hay acceso a un debugger ni stack trace en vivo,
+  // así que esto es lo único que permite confirmar, mirando los logs, que
+  // la petición llegó al backend en absoluto (si nunca aparece, el problema
+  // es de red/DNS/URL mal armada del lado del frontend, no del backend).
+  // OJO: nunca loguear req.body completo ni la contraseña acá, solo claves.
   console.log("[POST /login] petición recibida, body:", req.body ? Object.keys(req.body) : req.body);
 
   if (!req.body) {
@@ -80,6 +83,8 @@ router.post("/", loginRateLimit, async (req, res) => {
       nombre: user.nombre,
     });
   }
+
+  console.log(`[POST /login] login exitoso (usuario id ${user.id})`);
 
   // No se devuelve el hash de la contraseña al cliente.
   // eslint-disable-next-line no-unused-vars

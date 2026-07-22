@@ -64,9 +64,14 @@ const ALL_PROJECTS_QUERY = `
 const CACHE_TTL_MS = 60_000;
 
 router.get("/", async (req, res) => {
+  console.log("[GET /allProjects] consultando listado de proyectos (cache o BD)");
   const projects = await cache
     .getOrSet("allProjects", CACHE_TTL_MS, () => db.query(ALL_PROJECTS_QUERY))
     .catch((err) => {
+      console.error(
+        "[GET /allProjects] no se pudo conseguir la lista de proyectos",
+        err,
+      );
       res.status(400).json({
         msg: "No se pudo conseguir la lista de proyectos",
         error: err,

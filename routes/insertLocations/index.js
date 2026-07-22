@@ -13,8 +13,14 @@ router.post("/", async (req, res) => {
   }
 
   const { locationForm, proyecto_id } = req.body;
+  console.log(
+    `[POST /insertLocations] actualizando información de ubicación del proyecto ${proyecto_id}`,
+  );
 
   if (!locationForm || typeof locationForm !== "object") {
+    console.warn(
+      `[POST /insertLocations] falta locationForm en la petición (proyecto ${proyecto_id})`,
+    );
     return res.status(400).json({ msg: "Faltan los datos de ubicación del proyecto" });
   }
 
@@ -23,6 +29,10 @@ router.post("/", async (req, res) => {
       proyecto_id,
     ])
     .catch((err) => {
+      console.error(
+        `[POST /insertLocations] no se pudo actualizar la información de locación (proyecto ${proyecto_id})`,
+        err,
+      );
       res.status(400).json({
         msg: `No se pudo actualizar la información de locación`,
         error: err,
@@ -32,6 +42,10 @@ router.post("/", async (req, res) => {
 
   // provincia/cantón/distrito se muestran en el listado de /allProjects.
   cache.delete("allProjects");
+
+  console.log(
+    `[POST /insertLocations] información de ubicación actualizada correctamente (proyecto ${proyecto_id})`,
+  );
 
   return res.status(200).json(locationsUpdate);
 });

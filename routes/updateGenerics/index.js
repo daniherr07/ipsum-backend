@@ -17,8 +17,12 @@ router.post("/", async (req, res) => {
 
   const table = formData.table;
   const id = formData.id;
+  console.log(
+    `[POST /updateGenerics] actualizando registro ${id} en tabla genérica "${table}"`,
+  );
 
   if (!ALLOWED_GENERIC_TABLES.includes(table)) {
+    console.warn(`[POST /updateGenerics] tabla no permitida: "${table}"`);
     return res.status(400).json({ msg: "Tabla no permitida" });
   }
 
@@ -30,6 +34,10 @@ router.post("/", async (req, res) => {
     .catch((err) => {
       // ER_DUP_ENTRY: se intentó dejar esta fila con el mismo valor único
       // (ej. nombre) que otra ya existente en la tabla.
+      console.error(
+        `[POST /updateGenerics] no se pudo actualizar el registro ${id} en la tabla "${table}"`,
+        err,
+      );
       const msg =
         err.code === "ER_DUP_ENTRY"
           ? "Ya existe un registro con ese mismo nombre/valor"
@@ -40,6 +48,10 @@ router.post("/", async (req, res) => {
 
   cache.delete(`generics:${table}`);
   cache.delete("formValues");
+
+  console.log(
+    `[POST /updateGenerics] registro ${id} actualizado correctamente en la tabla "${table}"`,
+  );
 
   return res.status(200).json(genericUpdate);
 });

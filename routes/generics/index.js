@@ -12,6 +12,7 @@ const CACHE_TTL_MS = 5 * 60_000;
 
 router.get("/:table", async (req, res) => {
   const { table } = req.params;
+  console.log(`[GET /generics/:table] consultando tabla genérica "${table}"`);
 
   if (!table) {
     res.status(400).json({ msg: "Petición inválida, debe tener un cuerpo" });
@@ -19,6 +20,7 @@ router.get("/:table", async (req, res) => {
   }
 
   if (!ALLOWED_GENERIC_TABLES.includes(table)) {
+    console.warn(`[GET /generics/:table] tabla no permitida: "${table}"`);
     return res.status(400).json({ msg: "Tabla no permitida" });
   }
 
@@ -31,6 +33,10 @@ router.get("/:table", async (req, res) => {
       }),
     )
     .catch((err) => {
+      console.error(
+        `[GET /generics/:table] no se pudo conseguir la información de la tabla "${table}"`,
+        err,
+      );
       res.status(400).json({
         msg: "No se pudo conseguir la información de esa tabla",
         error: err,

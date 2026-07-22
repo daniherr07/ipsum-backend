@@ -9,6 +9,7 @@ const cache = require("../../lib/cache");
 const CACHE_TTL_MS = 60_000;
 
 router.get("/", async (req, res) => {
+  console.log("[GET /selectUsers] consultando usuarios y roles (cache o BD)");
   const data = await cache
     .getOrSet("selectUsers", CACHE_TTL_MS, async () => {
       const [usuarios, roles] = await Promise.all([
@@ -28,7 +29,7 @@ router.get("/", async (req, res) => {
       return { usuarios, roles };
     })
     .catch((err) => {
-      console.error(err);
+      console.error("[GET /selectUsers] no se pudo seleccionar usuarios/roles", err);
       res
         .status(400)
         .json({ msg: "Error al intentar seleccionar usuarios", error: err });

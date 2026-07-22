@@ -13,8 +13,14 @@ router.post("/", async (req, res) => {
   }
 
   const { peopleForm, proyecto_id } = req.body;
+  console.log(
+    `[POST /insertPeople] actualizando encargados del proyecto ${proyecto_id}`,
+  );
 
   if (!peopleForm || typeof peopleForm !== "object") {
+    console.warn(
+      `[POST /insertPeople] falta peopleForm en la petición (proyecto ${proyecto_id})`,
+    );
     return res.status(400).json({ msg: "Faltan los datos de encargados del proyecto" });
   }
 
@@ -37,6 +43,10 @@ router.post("/", async (req, res) => {
   const peopleUpdate = await db
     .update("proyectos_people", peopleForm, "proyecto_id = ?", [proyecto_id])
     .catch((err) => {
+      console.error(
+        `[POST /insertPeople] no se pudo actualizar los encargados (proyecto ${proyecto_id})`,
+        err,
+      );
       res.status(400).json({
         msg: `No se pudo actualizar la información basica`,
         error: err,
@@ -47,6 +57,10 @@ router.post("/", async (req, res) => {
   // constructor/arquitecto/promotor/analista/ingeniero/fiscal se muestran
   // en el listado de /allProjects.
   cache.delete("allProjects");
+
+  console.log(
+    `[POST /insertPeople] encargados actualizados correctamente (proyecto ${proyecto_id})`,
+  );
 
   return res.status(200).json(peopleUpdate);
 });

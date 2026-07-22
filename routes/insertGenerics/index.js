@@ -15,8 +15,10 @@ router.post("/", async (req, res) => {
 
   const formData = req.body;
   const table = formData.table;
+  console.log(`[POST /insertGenerics] creando registro en tabla genérica "${table}"`);
 
   if (!ALLOWED_GENERIC_TABLES.includes(table)) {
+    console.warn(`[POST /insertGenerics] tabla no permitida: "${table}"`);
     return res.status(400).json({ msg: "Tabla no permitida" });
   }
 
@@ -30,6 +32,10 @@ router.post("/", async (req, res) => {
       // ER_DUP_ENTRY: alguna columna de esta tabla tiene una restricción de
       // valor único (ej. entidades.nombre) y ya existe un registro con ese
       // mismo valor. Mensaje claro en vez del error crudo de MySQL.
+      console.error(
+        `[POST /insertGenerics] no se pudo crear el registro en la tabla "${table}"`,
+        err,
+      );
       const msg =
         err.code === "ER_DUP_ENTRY"
           ? "Ya existe un registro con ese mismo nombre/valor"
@@ -43,6 +49,10 @@ router.post("/", async (req, res) => {
   // el TTL de sus cachés.
   cache.delete(`generics:${table}`);
   cache.delete("formValues");
+
+  console.log(
+    `[POST /insertGenerics] registro creado correctamente en la tabla "${table}"`,
+  );
 
   return res.status(200).json(genericInsert);
 });

@@ -12,8 +12,14 @@ router.post("/", upload.array("files"), async (req, res) => {
   try {
     const formData = req.body;
     const files = req.files;
+    console.log(
+      `[POST /addLocationImage] subiendo ${files ? files.length : 0} imagen(es) de ubicación (proyecto ${formData.proyecto_id})`,
+    );
 
     if (!files || files.length === 0) {
+      console.warn(
+        `[POST /addLocationImage] petición sin archivos (proyecto ${formData.proyecto_id})`,
+      );
       return res.status(400).json({
         message: "No se enviaron archivos",
       });
@@ -43,6 +49,16 @@ router.post("/", upload.array("files"), async (req, res) => {
       ),
     );
 
+    if (failedCount > 0) {
+      console.warn(
+        `[POST /addLocationImage] ${failedCount} de ${uploadResults.length} imagen(es) fallaron al subir (proyecto ${formData.proyecto_id})`,
+      );
+    } else {
+      console.log(
+        `[POST /addLocationImage] ${uploadedFiles.length} imagen(es) guardadas correctamente (proyecto ${formData.proyecto_id})`,
+      );
+    }
+
     return res.status(failedCount > 0 ? 207 : 200).json({
       message:
         failedCount > 0
@@ -51,7 +67,10 @@ router.post("/", upload.array("files"), async (req, res) => {
       files: result,
     });
   } catch (error) {
-    console.error("Error subiendo imágenes de ubicación:", error);
+    console.error(
+      `[POST /addLocationImage] error inesperado subiendo imágenes de ubicación (proyecto ${req.body?.proyecto_id})`,
+      error,
+    );
 
     return res.status(500).json({
       message: "Error al subir imágenes",

@@ -17,6 +17,7 @@ router.post("/", async (req, res) => {
   }
 
   const { id } = req.body;
+  console.log(`[POST /deleteUser] desactivando usuario id ${id}`);
 
   if (!id) {
     return res.status(400).json({ msg: "Falta el usuario a eliminar" });
@@ -25,9 +26,12 @@ router.post("/", async (req, res) => {
   const result = await db
     .update("usuarios", { activated: 0 }, "id = ?", [id])
     .catch((err) => {
+      console.error(`[POST /deleteUser] no se pudo desactivar el usuario ${id}`, err);
       res.status(400).json({ msg: "No se pudo eliminar el usuario", error: err });
       throw new Error("No se pudo eliminar el usuario", err);
     });
+
+  console.log(`[POST /deleteUser] usuario ${id} desactivado correctamente`);
 
   cache.delete("selectUsers");
 

@@ -13,6 +13,13 @@ router.post("/", async (req, res) => {
   }
 
   const formData = req.body;
+  console.log(`[POST /updateUsers] actualizando usuario id ${formData.id}`);
+
+  const parsedRolId = parseInt(formData.rol_id);
+  if (Number.isNaN(parsedRolId)) {
+    console.warn(`[POST /updateUsers] rol_id inválido: ${JSON.stringify(formData.rol_id)} (usuario ${formData.id})`);
+    return res.status(400).json({ msg: "El rol indicado no es válido" });
+  }
 
   const userUpdate = await db
     .update(
@@ -22,7 +29,7 @@ router.post("/", async (req, res) => {
         apellido1: formData.apellido1,
         apellido2: formData.apellido2,
         correo_electronico: formData.correo_electronico,
-        rol_id: parseInt(formData.rol_id),
+        rol_id: parsedRolId,
       },
       "id = ?",
       [formData.id],
@@ -32,9 +39,12 @@ router.post("/", async (req, res) => {
         err.code === "ER_DUP_ENTRY"
           ? "Ya existe un usuario con ese correo electrónico"
           : "No se pudo actualizar la información del usuario";
+      console.error(`[POST /updateUsers] ${msg} (usuario ${formData.id})`, err);
       res.status(400).json({ msg, error: err });
       throw new Error(`No se pudo actualizar la información del usuario` + err);
     });
+
+  console.log(`[POST /updateUsers] usuario ${formData.id} actualizado correctamente`);
 
   cache.delete("selectUsers");
   cache.delete("formValues");

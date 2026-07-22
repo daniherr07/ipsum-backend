@@ -9,8 +9,12 @@ router.post("/", async (req, res) => {
   }
 
   const { id, usuario_id } = req.body;
+  console.log(
+    `[POST /deleteNotification] borrando notificación ${id} (usuario ${usuario_id})`,
+  );
 
   if (!id || !usuario_id) {
+    console.warn("[POST /deleteNotification] faltan id/usuario_id en la petición");
     return res.status(400).json({ msg: "Faltan datos" });
   }
 
@@ -19,9 +23,17 @@ router.post("/", async (req, res) => {
   const result = await db
     .delete("notificaciones", "id = ? and usuario_id = ?", [id, usuario_id])
     .catch((err) => {
+      console.error(
+        `[POST /deleteNotification] no se pudo borrar la notificación ${id} (usuario ${usuario_id})`,
+        err,
+      );
       res.status(400).json({ msg: "No se pudo borrar la notificación", error: err });
       throw new Error("No se pudo borrar la notificación", err);
     });
+
+  console.log(
+    `[POST /deleteNotification] notificación ${id} borrada correctamente (usuario ${usuario_id})`,
+  );
 
   return res.status(200).json(result);
 });

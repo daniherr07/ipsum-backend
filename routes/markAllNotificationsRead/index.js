@@ -9,8 +9,12 @@ router.post("/", async (req, res) => {
   }
 
   const { usuario_id } = req.body;
+  console.log(
+    `[POST /markAllNotificationsRead] marcando todas las notificaciones como leídas (usuario ${usuario_id})`,
+  );
 
   if (!usuario_id) {
+    console.warn("[POST /markAllNotificationsRead] falta usuario_id en la petición");
     return res.status(400).json({ msg: "Falta el usuario" });
   }
 
@@ -19,12 +23,20 @@ router.post("/", async (req, res) => {
       usuario_id,
     ])
     .catch((err) => {
+      console.error(
+        `[POST /markAllNotificationsRead] no se pudieron marcar como leídas (usuario ${usuario_id})`,
+        err,
+      );
       res.status(400).json({
         msg: "No se pudieron marcar como leídas",
         error: err,
       });
       throw new Error("No se pudieron marcar como leídas", err);
     });
+
+  console.log(
+    `[POST /markAllNotificationsRead] notificaciones marcadas como leídas (usuario ${usuario_id})`,
+  );
 
   return res.status(200).json(result);
 });

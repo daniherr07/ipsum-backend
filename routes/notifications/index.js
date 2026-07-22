@@ -4,8 +4,10 @@ const db = require("../../lib/db");
 
 router.get("/:userId", async (req, res) => {
   const { userId } = req.params;
+  console.log(`[GET /notifications/:userId] consultando notificaciones del usuario ${userId}`);
 
   if (!userId) {
+    console.warn("[GET /notifications/:userId] falta userId en la petición");
     return res.status(400).json({ msg: "Falta el usuario" });
   }
 
@@ -30,6 +32,10 @@ router.get("/:userId", async (req, res) => {
       params: [userId],
     }),
   ]).catch((err) => {
+    console.error(
+      `[GET /notifications/:userId] no se pudieron obtener las notificaciones (usuario ${userId})`,
+      err,
+    );
     res.status(400).json({
       msg: "No se pudieron obtener las notificaciones",
       error: err,

@@ -29,6 +29,9 @@ router.post("/", async (req, res) => {
     asunto,
     mensaje,
   } = req.body;
+  console.log(
+    `[POST /insertNotification] enviando notificación manual (proyecto ${proyecto_id}, de ${remitente_usuario_id} a ${destinatario_usuario_id}, mensaje ${mensaje?.length ?? 0} caracteres)`,
+  );
 
   if (
     !proyecto_id ||
@@ -37,6 +40,9 @@ router.post("/", async (req, res) => {
     !asunto ||
     !mensaje
   ) {
+    console.warn(
+      "[POST /insertNotification] faltan datos requeridos en la petición",
+    );
     return res
       .status(400)
       .json({ msg: "Faltan datos para enviar la notificación" });
@@ -59,11 +65,18 @@ router.post("/", async (req, res) => {
       params: [destinatario_usuario_id],
     }),
   ]).catch((err) => {
+    console.error(
+      `[POST /insertNotification] no se pudo obtener datos de proyecto/remitente/destinatario (proyecto ${proyecto_id})`,
+      err,
+    );
     res.status(400).json({ msg: "No se pudo enviar la notificación", error: err });
     throw new Error("No se pudo enviar la notificación", err);
   });
 
   if (!destinatarioRows || destinatarioRows.length === 0) {
+    console.warn(
+      `[POST /insertNotification] destinatario ${destinatario_usuario_id} no existe o está inactivo`,
+    );
     return res
       .status(400)
       .json({ msg: "El destinatario no existe o está inactivo" });
@@ -88,6 +101,10 @@ router.post("/", async (req, res) => {
       remitente_usuario_id,
     })
     .catch((err) => {
+      console.error(
+        `[POST /insertNotification] no se pudo guardar la notificación (proyecto ${proyecto_id}, destinatario ${destinatario_usuario_id})`,
+        err,
+      );
       res.status(400).json({ msg: "No se pudo guardar la notificación", error: err });
       throw new Error("No se pudo guardar la notificación", err);
     });
@@ -114,6 +131,10 @@ router.post("/", async (req, res) => {
   } catch (error) {
     console.error("Error enviando correo de notificación manual", error);
   }
+
+  console.log(
+    `[POST /insertNotification] notificación manual enviada correctamente (proyecto ${proyecto_id}, destinatario ${destinatario_usuario_id})`,
+  );
 
   return res.status(200).json(notificationInsert);
 });

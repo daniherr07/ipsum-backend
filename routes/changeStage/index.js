@@ -19,6 +19,16 @@ router.post("/", async (req, res) => {
   const formData = req.body;
   const etapaId = parseInt(formData.etapa_id);
 
+  // Si etapa_id viene vacío/no-numérico, parseInt da NaN — sin este chequeo
+  // se intentaba escribir NaN en la columna FK etapa_id (int) de
+  // proyectos_stages, un valor sin sentido para esa columna.
+  if (Number.isNaN(etapaId)) {
+    console.warn(
+      `[POST /changeStage] etapa_id inválido recibido: ${JSON.stringify(formData.etapa_id)} (proyecto ${formData.projectID})`,
+    );
+    return res.status(400).json({ msg: "La etapa indicada no es válida" });
+  }
+
   const stageUpdate = await db
     .update(
       "proyectos_stages",

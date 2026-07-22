@@ -9,6 +9,7 @@ const {
 // instantáneo. Se usa en el editor de proyecto para mostrar, junto a cada
 // etapa, a quién se le va a avisar si el usuario hace clic en ella.
 router.get("/", (req, res) => {
+  console.log("[GET /stageNotificationRoles] consultando roles de notificación por etapa");
   return res.status(200).json(getAllStageNotificationRoleLabels());
 });
 

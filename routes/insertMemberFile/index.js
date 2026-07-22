@@ -11,8 +11,14 @@ const upload = multer({ storage });
 
 router.post("/", upload.single("file"), async (req, res) => {
   const formData = req.body;
+  console.log(
+    `[POST /insertMemberFile] subiendo foto de cédula (proyecto ${formData?.proyecto_id}, miembro ${formData?.id})`,
+  );
 
   if (!formData || !formData.id || !formData.proyecto_id) {
+    console.warn(
+      "[POST /insertMemberFile] faltan datos (id/proyecto_id) en la petición",
+    );
     return res.status(400).json({ msg: "Faltan datos para subir la foto" });
   }
 
@@ -27,7 +33,10 @@ router.post("/", upload.single("file"), async (req, res) => {
         "families",
       );
     } catch (error) {
-      console.error("Error subiendo la foto de cédula a Dropbox", error);
+      console.error(
+        `[POST /insertMemberFile] no se pudo subir la foto de cédula a Dropbox (proyecto ${formData.proyecto_id}, miembro ${formData.id})`,
+        error,
+      );
       return res.status(500).json({ msg: "No se pudo subir la foto" });
     }
   }
@@ -43,9 +52,17 @@ router.post("/", upload.single("file"), async (req, res) => {
       [formData.id, formData.proyecto_id],
     )
     .catch((err) => {
+      console.error(
+        `[POST /insertMemberFile] no se pudo guardar la foto (proyecto ${formData.proyecto_id}, miembro ${formData.id})`,
+        err,
+      );
       res.status(400).json({ msg: "No se pudo guardar la foto", error: err });
       throw new Error("No se pudo guardar la foto", err);
     });
+
+  console.log(
+    `[POST /insertMemberFile] foto guardada correctamente (proyecto ${formData.proyecto_id}, miembro ${formData.id})`,
+  );
 
   return res.status(200).json(memberUpdate);
 });

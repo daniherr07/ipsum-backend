@@ -47,6 +47,16 @@ router.get("/:projectID", async (req, res) => {
       stages(projectID),
     ]);
 
+  // proyectos_new no tiene fila con este id (borrado, id inventado, o una
+  // condición de carrera con un delete) — antes esto seguía de largo y
+  // explotaba con "Cannot read properties of undefined (reading 'slug')"
+  // en la línea de abajo, devolviendo un 500 genérico en vez de un error
+  // claro.
+  if (!projectName || projectName.length === 0) {
+    console.warn(`[GET /projectData/${projectID}] no existe ese proyecto`);
+    return res.status(404).json({ msg: "El proyecto no existe" });
+  }
+
   return res.status(200).json({
     projectName: projectName[0],
     projectSlug: projectName[0].slug,

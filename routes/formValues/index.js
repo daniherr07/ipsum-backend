@@ -12,6 +12,7 @@ const cache = require("../../lib/cache");
 const CACHE_TTL_MS = 5 * 60_000;
 
 router.get("/", async (req, res) => {
+  console.log("[GET /formValues] consultando valores de formularios (cache o BD)");
   const data = await cache
     .getOrSet("formValues", CACHE_TTL_MS, async () => {
       const [basicFormValues, adminFormValues, peopleFormValues] =
@@ -43,6 +44,10 @@ router.get("/", async (req, res) => {
       };
     })
     .catch((err) => {
+      console.error(
+        "[GET /formValues] no se pudo conseguir la información de los valores para los formularios",
+        err,
+      );
       res.status(400).json({
         msg: "No se pudo conseguir la información de los valores para los formularios",
         error: err,

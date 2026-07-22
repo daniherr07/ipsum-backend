@@ -22,7 +22,18 @@ router.post("/", async (req, res) => {
   basicsForm.grupo_id = parseInt(basicsForm.grupo_id)
   basicsForm.bono_id = parseInt(basicsForm.bono_id)
   basicsForm.variante_bono_id = parseInt(basicsForm.variante_bono_id)
-  
+
+  // Si alguno venía vacío/no-numérico, parseInt da NaN — sin este chequeo
+  // se escribía NaN en una columna FK (int) de proyectos_basics.
+  const invalidField = ["grupo_id", "bono_id", "variante_bono_id"].find(
+    (key) => Number.isNaN(basicsForm[key]),
+  );
+  if (invalidField) {
+    console.warn(
+      `[POST /insertBasics] campo inválido "${invalidField}" para el proyecto ${proyecto_id}`,
+    );
+    return res.status(400).json({ msg: `El campo "${invalidField}" no es válido` });
+  }
 
   const basicsUpdate = await db
     .update("proyectos_basics", basicsForm, "proyecto_id = ?", [proyecto_id])

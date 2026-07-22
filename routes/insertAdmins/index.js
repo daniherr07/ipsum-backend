@@ -13,8 +13,14 @@ router.post("/", async (req, res) => {
   }
 
   const { adminForm, proyecto_id } = req.body;
+  console.log(
+    `[POST /insertAdmins] actualizando información administrativa del proyecto ${proyecto_id}`,
+  );
 
   if (!adminForm || typeof adminForm !== "object") {
+    console.warn(
+      `[POST /insertAdmins] falta adminForm en la petición (proyecto ${proyecto_id})`,
+    );
     return res.status(400).json({ msg: "Faltan los datos administrativos del proyecto" });
   }
 
@@ -30,6 +36,10 @@ router.post("/", async (req, res) => {
   const adminUpdate = await db
     .update("proyectos_admins", adminForm, "proyecto_id = ?", [proyecto_id])
     .catch((err) => {
+      console.error(
+        `[POST /insertAdmins] no se pudo actualizar la información administrativa (proyecto ${proyecto_id})`,
+        err,
+      );
       res.status(400).json({
         msg: `No se pudo actualizar la información administrativa`,
         error: err,
@@ -41,6 +51,10 @@ router.post("/", async (req, res) => {
 
   // entidad/centro de negocios se muestran en el listado de /allProjects.
   cache.delete("allProjects");
+
+  console.log(
+    `[POST /insertAdmins] información administrativa actualizada correctamente (proyecto ${proyecto_id})`,
+  );
 
   return res.status(200).json(adminUpdate);
 });

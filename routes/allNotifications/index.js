@@ -8,6 +8,7 @@ const db = require("../../lib/db");
 // que se ha notificado en el sistema (proyectos creados, cambios de etapa,
 // notificaciones manuales entre usuarios).
 router.get("/", async (req, res) => {
+  console.log("[GET /allNotifications] consultando bitácora del sistema (últimas 500)");
   const notifications = await db
     .query(
       `select n.*,
@@ -22,6 +23,10 @@ router.get("/", async (req, res) => {
        limit 500`,
     )
     .catch((err) => {
+      console.error(
+        "[GET /allNotifications] no se pudo conseguir la bitácora del sistema",
+        err,
+      );
       res.status(400).json({
         msg: "No se pudo conseguir la bitácora del sistema",
         error: err,

@@ -18,8 +18,11 @@ router.post("/", async (req, res) => {
   }
 
   const { id, currentPassword, newPassword } = req.body;
+  // Nunca loguear currentPassword/newPassword, solo el id del usuario.
+  console.log(`[POST /changePassword] solicitud de cambio de contraseña (usuario id ${id})`);
 
   if (!id || !currentPassword || !newPassword) {
+    console.warn(`[POST /changePassword] faltan datos (usuario id ${id})`);
     return res.status(400).json({ msg: "Faltan datos" });
   }
 
@@ -36,6 +39,7 @@ router.post("/", async (req, res) => {
   });
 
   if (!userSelect || userSelect.length === 0) {
+    console.warn(`[POST /changePassword] usuario ${id} no encontrado`);
     return res.status(400).json({ msg: "Usuario no encontrado" });
   }
 
@@ -45,11 +49,12 @@ router.post("/", async (req, res) => {
   try {
     isMatch = await comparePassword(currentPassword, user.password);
   } catch (error) {
-    console.error("Error comparando contraseñas", error);
+    console.error(`[POST /changePassword] error comparando contraseñas (usuario ${id})`, error);
     return res.status(500).json({ msg: "No se pudo validar el usuario" });
   }
 
   if (!isMatch) {
+    console.warn(`[POST /changePassword] contraseña actual incorrecta (usuario ${id})`);
     return res.status(400).json({ msg: "La contraseña actual es incorrecta" });
   }
 
@@ -63,9 +68,12 @@ router.post("/", async (req, res) => {
       [id],
     )
     .catch((err) => {
+      console.error(`[POST /changePassword] no se pudo actualizar la contraseña (usuario ${id})`, err);
       res.status(400).json({ msg: "No se pudo actualizar la contraseña", error: err });
       throw new Error("No se pudo actualizar la contraseña", err);
     });
+
+  console.log(`[POST /changePassword] contraseña actualizada correctamente (usuario ${id})`);
 
   // Contraseña cambiada con éxito: ya es un usuario regular (estado = 1),
   // se le deja entrar de una vez sin pedirle que inicie sesión de nuevo.
