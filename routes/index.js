@@ -13,6 +13,7 @@ router.use("/formValues", require("./formValues"));
 router.use("/insertMember", require("./insertMember"));
 router.use("/insertMemberFile", require("./insertMemberFile"));
 router.use("/updateMember", require("./updateMember"));
+router.use("/deleteMemberPhoto", require("./deleteMemberPhoto"));
 
 router.use("/insertBasics", require("./insertBasics"));
 router.use("/insertLocations", require("./insertLocations"));
