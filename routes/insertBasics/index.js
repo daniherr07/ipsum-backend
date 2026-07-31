@@ -20,8 +20,8 @@ router.post("/", async (req, res) => {
 
   basicsForm.fis = basicsForm.fis ? 1 : 0;
   basicsForm.grupo_id = parseInt(basicsForm.grupo_id) ? parseInt(basicsForm.grupo_id) : null
-  basicsForm.bono_id = parseInt(basicsForm.bono_id)
-  basicsForm.variante_bono_id = parseInt(basicsForm.variante_bono_id)
+  basicsForm.bono_id = parseInt(basicsForm.bono_id)? parseInt(basicsForm.variante_bono_id) : null
+  basicsForm.variante_bono_id = parseInt(basicsForm.variante_bono_id)  ? parseInt(basicsForm.variante_bono_id) : null
 
   // Si alguno venía vacío/no-numérico, parseInt da NaN — sin este chequeo
   // se escribía NaN en una columna FK (int) de proyectos_basics.
