@@ -31,7 +31,7 @@ router.post("/", async (req, res) => {
     .catch((err) => {
       console.error(
         `[POST /insertLocations] no se pudo actualizar la información de locación (proyecto ${proyecto_id})`,
-        err,
+        { datosEnviados: locationForm, error: { message: err.message, code: err.code, sqlMessage: err.sqlMessage } },
       );
       res.status(400).json({
         msg: `No se pudo actualizar la información de locación`,

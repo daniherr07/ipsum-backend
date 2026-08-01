@@ -38,6 +38,13 @@ router.post("/", async (req, res) => {
   const basicsUpdate = await db
     .update("proyectos_basics", basicsForm, "proyecto_id = ?", [proyecto_id])
     .catch((err) => {
+      // Detalle completo con los datos involucrados (con esta misma
+      // petición ya alcanza, sin ir a consultar nada más): a qué proyecto
+      // era, y el cuerpo exacto que se intentó guardar.
+      console.error(
+        `[POST /insertBasics] no se pudo actualizar proyectos_basics (proyecto ${proyecto_id})`,
+        { datosEnviados: basicsForm, error: { message: err.message, code: err.code, sqlMessage: err.sqlMessage } },
+      );
       res.status(400).json({
         msg: `No se pudo actualizar la información basica`,
         error: err,

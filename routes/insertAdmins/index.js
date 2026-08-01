@@ -38,7 +38,7 @@ router.post("/", async (req, res) => {
     .catch((err) => {
       console.error(
         `[POST /insertAdmins] no se pudo actualizar la información administrativa (proyecto ${proyecto_id})`,
-        err,
+        { datosEnviados: adminForm, error: { message: err.message, code: err.code, sqlMessage: err.sqlMessage } },
       );
       res.status(400).json({
         msg: `No se pudo actualizar la información administrativa`,

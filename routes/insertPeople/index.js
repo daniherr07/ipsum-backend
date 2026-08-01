@@ -45,7 +45,7 @@ router.post("/", async (req, res) => {
     .catch((err) => {
       console.error(
         `[POST /insertPeople] no se pudo actualizar los encargados (proyecto ${proyecto_id})`,
-        err,
+        { datosEnviados: peopleForm, error: { message: err.message, code: err.code, sqlMessage: err.sqlMessage } },
       );
       res.status(400).json({
         msg: `No se pudo actualizar la información basica`,
