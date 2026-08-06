@@ -4,6 +4,7 @@ const db = require("../../lib/db");
 const cache = require("../../lib/cache");
 
 router.post("/", async (req, res) => {
+  console.log("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
   if (!req.body) {
     console.log(req.body);
     res
@@ -14,14 +15,16 @@ router.post("/", async (req, res) => {
 
   const {basicsForm, proyecto_id} = req.body;
 
+  console.log(basicsForm)
+
   if (!basicsForm || typeof basicsForm !== "object") {
     return res.status(400).json({ msg: "Faltan los datos básicos del proyecto" });
   }
 
   basicsForm.fis = basicsForm.fis ? 1 : 0;
   basicsForm.grupo_id = parseInt(basicsForm.grupo_id) ? parseInt(basicsForm.grupo_id) : null
-  basicsForm.bono_id = parseInt(basicsForm.bono_id)? parseInt(basicsForm.variante_bono_id) : null
-  basicsForm.variante_bono_id = parseInt(basicsForm.variante_bono_id)  ? parseInt(basicsForm.variante_bono_id) : null
+  basicsForm.bono_id = parseInt(basicsForm.bono_id)? parseInt(basicsForm.bono_id) : null
+  basicsForm.variante_bono_id = parseInt(basicsForm.variante_bono_id) ? parseInt(basicsForm.variante_bono_id) : null
 
   // Si alguno venía vacío/no-numérico, parseInt da NaN — sin este chequeo
   // se escribía NaN en una columna FK (int) de proyectos_basics.
@@ -54,6 +57,8 @@ router.post("/", async (req, res) => {
 
   // bono/variante/grupo se muestran en el listado de /allProjects.
   cache.delete("allProjects");
+
+  console.log(basicsForm)
 
   return res.status(200).json(basicsUpdate);
 });
