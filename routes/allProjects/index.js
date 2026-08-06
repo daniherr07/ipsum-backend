@@ -25,6 +25,7 @@ const ALL_PROJECTS_QUERY = `
     l.provincia as provincia,
     l.canton as canton,
     l.distrito as distrito,
+    l.otro as otro,
     en.nombre as entidad,
     cn.nombre as centro_negocio,
     CONCAT(con.nombre, ' ', con.apellido1) as p_constructor,
