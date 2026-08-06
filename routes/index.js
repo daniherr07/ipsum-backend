@@ -7,6 +7,7 @@ router.use("/forgotPassword", require("./forgotPassword"));
 router.use("/new", require("./new"));
 router.use("/updateProjectStatus", require("./updateProjectStatus"));
 router.use("/projectData", require("./projectData"));
+router.use("/projectFamilies", require("./projectFamilies"));
 router.use("/allProjects", require("./allProjects"));
 router.use("/formValues", require("./formValues"));
 
