@@ -1,14 +1,17 @@
+// Sentry.init() (adentro de instrument.js) tiene que correr ANTES que
+// cualquier "require" de los paquetes que instrumenta (express, mysql2,
+// etc.) — si no, Sentry no llega a tiempo de parchar esos módulos y avisa
+// "express is not instrumented". Por eso esta línea va primera, antes que
+// nada más, incluyendo el "require('express')" de abajo.
 require("./instrument.js");
-
-// All other imports below
-// Import with `import * as Sentry from "@sentry/node"` if you are using ESM
-const Sentry = require("@sentry/node");
-Sentry.setupExpressErrorHandler(app);
 
 const express = require("express");
 const app = express();
 const cors = require("cors");
 require("dotenv").config();
+
+// Import with `import * as Sentry from "@sentry/node"` if you are using ESM
+const Sentry = require("@sentry/node");
 
 // Sin FRONTEND_URL, cors() se abre a cualquier origen (lo que ya venía
 // pasando) — se mantiene así por defecto para no romper nada si no está
@@ -29,6 +32,12 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/", require("./routes"));
+
+// Igual que el error-handler propio de abajo: tiene que ir DESPUÉS de las
+// rutas (para que Express lo enrute cuando algo falla adentro de ellas) pero
+// ANTES del error-handler propio (para que Sentry alcance a ver el error
+// antes de que la respuesta ya se haya mandado).
+Sentry.setupExpressErrorHandler(app);
 
 /** Middleware para detección de errores. Debe registrarse DESPUÉS de las
  * rutas: Express solo enruta un error hacia un error-handler registrado más
