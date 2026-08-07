@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const Sentry = require("@sentry/node");
 const db = require("../../lib/db");
 const initializeDropbox = require("../../lib/dropbox");
 const cache = require("../../lib/cache");
@@ -141,6 +142,7 @@ async function notifyNewProject(projectId, projectName, creatorUserId) {
     ]);
   } catch (error) {
     console.error("Error enviando notificación de proyecto nuevo", error);
+    Sentry.captureException(error, { extra: { proyectoId: projectId } });
   }
 }
 

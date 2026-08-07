@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const Sentry = require("@sentry/node");
 const db = require("../../lib/db");
 const bcrypt = require("bcrypt");
 const generatePassword = require("generate-password");
@@ -75,6 +76,7 @@ router.post("/", forgotPasswordRateLimit, async (req, res) => {
   } catch (error) {
     // No loguear newPassword acá ni en ningún otro log de esta ruta.
     console.error(`[POST /forgotPassword] error enviando correo (usuario ${user.id})`, error);
+    Sentry.captureException(error, { extra: { usuarioId: user.id } });
     return res.status(500).json({ msg: "No se pudo enviar el correo" });
   }
 

@@ -32,6 +32,16 @@ router.post("/", loginRateLimit, async (req, res) => {
   const { email, password } = req.body;
   console.log("[POST /login] email recibido:", email);
 
+  // Sin este chequeo, un email/password vacío (ej. el frontend manda el
+  // form incompleto) llegaba tal cual a db.select/comparePassword: mysql2
+  // rechaza params undefined con un error que el catch de abajo reportaba
+  // como "no se pudo conectar con la base de datos" — un mensaje engañoso
+  // para lo que en realidad es un dato faltante, no un problema de conexión.
+  if (!email || !password) {
+    console.warn("[POST /login] falta email o password en la petición");
+    return res.status(400).json({ msg: "Correo y contraseña son requeridos" });
+  }
+
   // Solo correo electrónico, no nombre de usuario (antes se aceptaban
   // ambos con "nombre = ? or correo_electronico = ?"). activated = 1
   // excluye usuarios "eliminados" (ver routes/deleteUser, borrado lógico) —

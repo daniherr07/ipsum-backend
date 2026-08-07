@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const Sentry = require("@sentry/node");
 const db = require("../../lib/db");
 const cache = require("../../lib/cache");
 const sendEmail = require("../../lib/sendEmail");
@@ -96,6 +97,9 @@ router.post("/", async (req, res) => {
     ]);
   } catch (error) {
     console.error("Error enviando notificación de cambio de etapa", error);
+    Sentry.captureException(error, {
+      extra: { proyectoId: formData.projectID, etapaId },
+    });
   }
 
   return res.status(200).json(stageUpdate);

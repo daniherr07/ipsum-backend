@@ -16,10 +16,14 @@ Sentry.init({
   profileSessionSampleRate: 1.0,
   // Trace lifecycle automatically enables profiling during active traces
   profileLifecycle: 'trace',
+  // Deshabilitado explícitamente (no dejado en el default del SDK): la
+  // base de datos de este sistema tiene PII real de producción (cédulas,
+  // nombres, correos, hashes de contraseña — ver advertencia en CLAUDE.md
+  // sobre IpsumDatabase.sql), y varias rutas reciben esos mismos datos en
+  // el body del request (login, insertMember, insertUser, etc.). Sentry no
+  // debe recibir ni el cuerpo de esos requests ni datos de usuario/IP.
   dataCollection: {
-    // To disable sending user data and HTTP bodies, uncomment the lines below. For more info visit:
-    // https://docs.sentry.io/platforms/javascript/guides/node/configuration/options/#dataCollection
-    // userInfo: false,
-    // httpBodies: [],
+    userInfo: false,
+    httpBodies: [],
   },
 });

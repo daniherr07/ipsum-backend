@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const Sentry = require("@sentry/node");
 const db = require("../../lib/db");
 const sendEmail = require("../../lib/sendEmail");
 const { buildEmailHtml, highlightBox } = require("../../lib/emailTemplate");
@@ -130,6 +131,9 @@ router.post("/", async (req, res) => {
     });
   } catch (error) {
     console.error("Error enviando correo de notificación manual", error);
+    Sentry.captureException(error, {
+      extra: { proyectoId: proyecto_id, destinatarioUsuarioId: destinatario_usuario_id },
+    });
   }
 
   console.log(
